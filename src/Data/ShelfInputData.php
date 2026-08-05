@@ -10,6 +10,6 @@ class ShelfInputData extends Data
     public function __construct(
         public string $name,
         public ?string $visibility = null,
-        public ?string $parent_id = null,
+        public ?string $parentId = null,
     ) {}
 }

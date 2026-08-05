@@ -8,6 +8,7 @@ use Splicewire\Beam\Bookmarks\Models\Shelf;
 use Splicewire\Beam\Bookmarks\Policies\ShelfPolicy;
 use Splicewire\Beam\Bookmarks\Tests\Fixtures\Song;
 use Splicewire\Beam\Bookmarks\Tests\Fixtures\User;
+use Splicewire\Beam\Particle\Attributes\ParticleResource;
 
 beforeEach(function () {
     $this->bm = app(Bookmarks::class);
@@ -130,19 +131,29 @@ it('projects a shelf with its bookmark count', function () {
 
     $data = ShelfData::project($shelf->fresh());
 
-    expect($data->name)->toBe('One')->and($data->bookmark_count)->toBe(1);
+    expect($data->name)->toBe('One')->and($data->bookmarkCount)->toBe(1);
 });
 
-it('filters bookmarks by shelf_id (a shelf vs the bare Saved list)', function () {
+it('declares the bookmarks resource filterable with shelfId + bookmarkableType facets (data-filters)', function () {
+    // Filtering rides the particle stack's data-filters mechanism, not a hand-rolled scope: the
+    // resource is filterable and declares its facets via #[Filterable]. The end-to-end
+    // ?filter[shelfId]=X HTTP proof (+ the host's owner-scoping data-filters query) is tracer 10.
+    $resource = (new ReflectionClass(BookmarkData::class))
+        ->getAttributes(ParticleResource::class)[0]->newInstance();
+    expect($resource->filterable)->toBeTrue();
+
+    $facets = [];
+    foreach ((new ReflectionClass(BookmarkData::class))->getConstructor()->getParameters() as $p) {
+        if ($p->getAttributes(Rushing\DataFilters\Attributes\Filterable::class)) {
+            $facets[] = $p->getName();
+        }
+    }
+    expect($facets)->toContain('shelfId', 'bookmarkableType');
+
+    // The underlying membership (what the shelfId facet filters on) is still exact at the model.
     $shelf = $this->bm->createShelf($this->owner, 'One');
-    $this->bm->save($this->owner, $this->song);                       // bare
-    $this->bm->save($this->owner, Song::create(['title' => 'x']), $shelf); // on shelf
-
-    $this->actingAs($this->owner);
-
-    request()->merge(['shelf_id' => $shelf->getKey()]);
-    expect(BookmarkData::scope(Bookmark::query())->count())->toBe(1);
-
-    request()->merge(['shelf_id' => '']); // the bare Saved list
-    expect(BookmarkData::scope(Bookmark::query())->count())->toBe(1);
+    $this->bm->save($this->owner, $this->song);                            // bare (Saved)
+    $this->bm->save($this->owner, Song::create(['title' => 'x']), $shelf);  // on the shelf
+    expect(Bookmark::query()->where('shelf_id', $shelf->getKey())->count())->toBe(1)
+        ->and(Bookmark::query()->whereNull('shelf_id')->count())->toBe(1);
 });

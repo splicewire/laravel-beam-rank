@@ -20,10 +20,10 @@ class ShelfData extends Data
 {
     public function __construct(
         public string $id,
-        public ?string $parent_id,
+        public ?string $parentId,
         public string $name,
         public ?string $visibility,
-        public int $bookmark_count,
+        public int $bookmarkCount,
     ) {}
 
     /** Own ∪ reach-visible shelves (published shelves surface to others via scopeForUser). */
@@ -46,10 +46,10 @@ class ShelfData extends Data
 
         return new self(
             id: $shelf->id,
-            parent_id: $shelf->parent_id,
+            parentId: $shelf->parent_id,
             name: $shelf->name,
             visibility: $visibility instanceof \BackedEnum ? $visibility->value : $visibility,
-            bookmark_count: $shelf->bookmarks()->count(),
+            bookmarkCount: $shelf->bookmarks()->count(),
         );
     }
 }
