@@ -6,7 +6,11 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Splicewire\Beam\Beam;
 
-/** The beam_playlists table (adjacency parent_id + visibility) (ADR-0009, tracer 09). Net-new, create-only, current-schema guarded (tenant-safe). */
+/**
+ * `beam_shelves` — a named, nestable, shareable grouping of bookmarks (ADR-0009, tracer 09).
+ * Net-new, create-only, current-schema guarded (tenant-safe). `visibility` is the permission-cascade
+ * reach tier (host vocabulary); `parent_id` is the adjacency parent (nested under a per-user root).
+ */
 return new class extends Migration
 {
     public function up(): void
@@ -15,11 +19,12 @@ return new class extends Migration
         if ($this->exists($schema, $this->target())) {
             return;
         }
-        Schema::create($this->target(), function (Blueprint $table) {
+
+        Schema::create($this->target(), function (Blueprint $table): void {
             $table->uuid('id')->primary();
-            $table->string('name');
             $table->uuid('parent_id')->nullable()->index();
-            $table->string('visibility')->nullable();
+            $table->string('name');
+            $table->string('visibility')->nullable()->index();
             $table->timestamps();
         });
     }
@@ -31,7 +36,7 @@ return new class extends Migration
 
     private function target(): string
     {
-        return Beam::table('playlists');
+        return Beam::table('shelves');
     }
 
     private function exists(string $schema, string $table): bool

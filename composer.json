@@ -1,7 +1,7 @@
 {
     "name": "splicewire/laravel-beam-bookmarks",
-    "description": "Taxonomized playlists + lightweight pins/bookmarks for beam sites, composed on the permission-cascade visibility substrate (HasVisibility + HasUser) and staudenmeir adjacency — a user-rooted playlist subtree, ordered/deduped polymorphic items, and single-item bookmarks. Models + migrations + config; the host UI + faceting is the consuming satellite.",
-    "keywords": ["laravel", "schemastud", "beam", "playlists", "bookmarks", "taxonomy"],
+    "description": "Save lists of particles for beam sites: a generic Bookmark (a saved particle) + a Shelf (a named, orderable, shareable, nestable grouping of bookmarks), on the permission-cascade visibility substrate (HasVisibility + HasUser) and staudenmeir adjacency. Declarative particle resources (shelves + bookmarks) for read/write/hydrate/edit. A host maps its own vocabulary onto a Shelf (audiostud: a 'playlist' is a shelf of song bookmarks).",
+    "keywords": ["laravel", "schemastud", "beam", "bookmarks", "shelves", "taxonomy"],
     "license": "MIT",
     "authors": [{ "name": "Stephen Rushing", "email": "stephen@rushing.dev" }],
     "require": {
@@ -10,6 +10,7 @@
         "illuminate/database": "^11.0|^12.0|^13.0",
         "illuminate/support": "^11.0|^12.0|^13.0",
         "rushing/laravel-permission-cascade": "*",
+        "splicewire/laravel-beam": "*",
         "staudenmeir/laravel-adjacency-list": "*"
     },
     "require-dev": {
@@ -25,8 +26,8 @@
     },
     "repositories": [
         { "type": "path", "url": "../*", "options": { "symlink": true } },
-        { "type": "path", "url": "../../rushing/laravel-permission-cascade", "options": { "symlink": true } },
-        { "type": "git", "url": "https://github.com/stephenr85/laravel-permission-cascade.git" }
+        { "type": "path", "url": "../../rushing/*", "options": { "symlink": true } },
+        { "type": "path", "url": "../../schemastud/*", "options": { "symlink": true } }
     ],
     "minimum-stability": "dev",
     "prefer-stable": true,

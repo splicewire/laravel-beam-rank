@@ -9,10 +9,9 @@ use Orchestra\Testbench\TestCase as Orchestra;
 use Rushing\PermissionCascade\PermissionCascadeServiceProvider;
 use Spatie\Permission\Models\Role;
 use Spatie\Permission\PermissionServiceProvider;
+use Splicewire\Beam\Beam;
 use Splicewire\Beam\Bookmarks\BeamBookmarksServiceProvider;
-use Splicewire\Beam\Bookmarks\Models\Playlist;
-use Splicewire\Beam\Bookmarks\Models\PlaylistItem;
-use Splicewire\Beam\Bookmarks\Support\Tables;
+use Splicewire\Beam\Bookmarks\Models\Shelf;
 use Splicewire\Beam\Bookmarks\Tests\Fixtures\Song;
 use Splicewire\Beam\Bookmarks\Tests\Fixtures\User;
 
@@ -25,8 +24,7 @@ abstract class TestCase extends Orchestra
         Relation::enforceMorphMap([
             'user' => User::class,
             'song' => Song::class,
-            'playlist' => Playlist::class,
-            'playlist_item' => PlaylistItem::class,
+            'shelf' => Shelf::class,
             'role' => Role::class,
         ]);
 
@@ -51,10 +49,12 @@ abstract class TestCase extends Orchestra
         $c->set('database.connections.testing', ['driver' => 'sqlite', 'database' => ':memory:', 'prefix' => '']);
         $c->set('auth.providers.users.model', User::class);
         $c->set('permission-cascade.user_model', User::class);
-        // Single-tenant test: teams off, and don't run the Postgres-only migrations (schema is hand-built below).
+        // Single-tenant test: teams off; the package migrations are Postgres-guarded (schema is hand-built below).
         $c->set('permission-cascade.manage_spatie_teams', false);
         $c->set('permission.teams', false);
         $c->set('beam.bookmarks.register_migrations', false);
+        // The particle surface needs laravel-beam's route macros (absent here) — Resources::register no-ops.
+        $c->set('beam.bookmarks.register_resources', false);
     }
 
     protected function createFixtureSchema(): void
@@ -79,32 +79,24 @@ abstract class TestCase extends Orchestra
             $t->string('userable_id');
         });
 
-        Schema::create(Tables::name('playlists'), function (Blueprint $t): void {
+        Schema::create(Beam::table('shelves'), function (Blueprint $t): void {
             $t->uuid('id')->primary();
-            $t->string('name');
             $t->uuid('parent_id')->nullable()->index();
-            $t->string('visibility')->nullable();
+            $t->string('name');
+            $t->string('visibility')->nullable()->index();
             $t->timestamps();
         });
 
-        Schema::create(Tables::name('playlist_items'), function (Blueprint $t): void {
-            $t->id();
-            $t->uuid('playlist_id')->index();
-            $t->string('playlistable_type');
-            $t->string('playlistable_id');
-            $t->unsignedInteger('position')->default(0);
-            $t->timestamps();
-            $t->unique(['playlist_id', 'playlistable_type', 'playlistable_id']);
-        });
-
-        Schema::create(Tables::name('bookmarks'), function (Blueprint $t): void {
+        Schema::create(Beam::table('bookmarks'), function (Blueprint $t): void {
             $t->uuid('id')->primary();
-            $t->string('owner_type');
-            $t->string('owner_id');
+            $t->string('user_type');
+            $t->string('user_id');
             $t->string('bookmarkable_type');
             $t->string('bookmarkable_id');
+            $t->uuid('shelf_id')->nullable()->index();
+            $t->unsignedInteger('position')->nullable();
             $t->timestamps();
-            $t->unique(['owner_type', 'owner_id', 'bookmarkable_type', 'bookmarkable_id']);
+            $t->unique(['user_type', 'user_id', 'bookmarkable_type', 'bookmarkable_id', 'shelf_id'], 'bookmarks_unique');
         });
     }
 
