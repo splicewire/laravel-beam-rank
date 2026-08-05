@@ -34,21 +34,23 @@ class Resources
 
         app(AttributedParticleDiscovery::class)->discover([ShelfData::class, BookmarkData::class]);
 
-        app(ParticleOperationRegistry::class)->register(new ParticleOperation(
+        // The reorder write op is an inline particle operation; `Route::particleOps` (HTTP-02) registers it
+        // AND mounts it (was: an imperative `$registry->register(...)` + a bare `Route::particleOp(...)`).
+        $reorderOp = new ParticleOperation(
             resource: 'shelves', name: 'reorder', kind: OperationKind::Write, model: Shelf::class, ability: 'update',
             handle: function (Shelf $shelf, Request $request) {
                 app(Bookmarks::class)->reorder($shelf, (array) $request->input('ids', []));
 
                 return ['data' => ['id' => $shelf->getKey(), 'ordered' => count((array) $request->input('ids', []))]];
             },
-        ));
+        );
 
-        Route::middleware($middleware)->prefix($groupPrefix)->group(function () {
+        Route::middleware($middleware)->prefix($groupPrefix)->group(function () use ($reorderOp) {
             Route::particleResource('shelves', 'shelves', ['only' => ['index', 'store', 'update', 'destroy']]);
             Route::particleResource('bookmarks', 'bookmarks', ['only' => ['index', 'destroy']]);
-            Route::particleOp('shelves', 'shelves', 'reorder');
+            Route::particleOps('shelves', 'shelves', [$reorderOp]);
 
-            // Dedup-aware save/unsave over the action (a bare create can't dedup).
+            // Dedup-aware save/unsave over the action (a bare create can't dedup) — stay bespoke, not ops.
             Route::post('bookmarks/save', fn (Request $r) => ['data' => self::save($r, false)]);
             Route::post('bookmarks/unsave', fn (Request $r) => ['data' => self::save($r, true)]);
         });
