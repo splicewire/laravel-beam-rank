@@ -1,0 +1,38 @@
+{
+    "name": "splicewire/laravel-beam-bookmarks",
+    "description": "Taxonomized playlists + lightweight pins/bookmarks for beam sites, composed on the permission-cascade visibility substrate (HasVisibility + HasUser) and staudenmeir adjacency — a user-rooted playlist subtree, ordered/deduped polymorphic items, and single-item bookmarks. Models + migrations + config; the host UI + faceting is the consuming satellite.",
+    "keywords": ["laravel", "schemastud", "beam", "playlists", "bookmarks", "taxonomy"],
+    "license": "MIT",
+    "authors": [{ "name": "Stephen Rushing", "email": "stephen@rushing.dev" }],
+    "require": {
+        "php": "^8.2",
+        "illuminate/contracts": "^11.0|^12.0|^13.0",
+        "illuminate/database": "^11.0|^12.0|^13.0",
+        "illuminate/support": "^11.0|^12.0|^13.0",
+        "rushing/laravel-permission-cascade": "*",
+        "staudenmeir/laravel-adjacency-list": "*"
+    },
+    "require-dev": {
+        "orchestra/testbench": "^9.0|^10.0|^11.0",
+        "pestphp/pest": "^2.0|^3.0",
+        "laravel/pint": "^1.0"
+    },
+    "autoload": { "psr-4": { "Splicewire\\Beam\\Bookmarks\\": "src/" } },
+    "autoload-dev": { "psr-4": { "Splicewire\\Beam\\Bookmarks\\Tests\\": "tests/" } },
+    "extra": {
+        "branch-alias": { "dev-main": "1.0.x-dev" },
+        "laravel": { "providers": ["Splicewire\\Beam\\Bookmarks\\BeamBookmarksServiceProvider"] }
+    },
+    "repositories": [
+        { "type": "path", "url": "../*", "options": { "symlink": true } },
+        { "type": "path", "url": "../../rushing/laravel-permission-cascade", "options": { "symlink": true } },
+        { "type": "git", "url": "https://github.com/stephenr85/laravel-permission-cascade.git" }
+    ],
+    "minimum-stability": "dev",
+    "prefer-stable": true,
+    "scripts": { "test": "vendor/bin/pest", "pint": "@php -d memory_limit=512M vendor/bin/pint" },
+    "config": {
+        "sort-packages": true,
+        "allow-plugins": { "pestphp/pest-plugin": true, "php-http/discovery": true }
+    }
+}
