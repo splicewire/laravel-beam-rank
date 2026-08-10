@@ -3,6 +3,7 @@
 namespace Splicewire\Beam\Bookmarks\Data;
 
 use Spatie\LaravelData\Data;
+use Splicewire\Beam\Http\Particle\ParticleController;
 
 /** The shelf write shape (create/rename/publish): only these are mass-fillable. */
 class ShelfInputData extends Data
@@ -14,7 +15,7 @@ class ShelfInputData extends Data
     ) {}
 
     /**
-     * The beam write seam ({@see \Splicewire\Beam\Http\Particle\ParticleController::toAttributes}) fills
+     * The beam write seam ({@see ParticleController::toAttributes}) fills
      * the model from THIS, not the camelCase `toArray()` — so map the DTO props to the snake_case
      * `beam_shelves` columns. Nulls are dropped so a partial write (rename) never clobbers unspecified
      * fields, and a `null` `parentId` on create is left for {@see ShelfData::prepare} to root.

@@ -25,7 +25,7 @@ use Splicewire\Beam\Particle\Attributes\ParticleResource;
  * (audiostud's `App\Read\BookmarksQuery::baseQuery` — the one thing annotations can't express). That
  * binding + the end-to-end HTTP filter proof landed in tracer 10.
  */
-#[ParticleResource(key: 'bookmarks', model: Bookmark::class, filterable: true, defaultSort: 'position')]
+#[ParticleResource(key: 'bookmarks', model: Bookmark::class, filterable: true)]
 class BookmarkData extends Data
 {
     public function __construct(

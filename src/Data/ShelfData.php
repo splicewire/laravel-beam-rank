@@ -4,6 +4,7 @@ namespace Splicewire\Beam\Bookmarks\Data;
 
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Auth;
+use Rushing\DataFilters\Attributes\Sortable;
 use Spatie\LaravelData\Data;
 use Splicewire\Beam\Bookmarks\Bookmarks;
 use Splicewire\Beam\Bookmarks\Models\Shelf;
@@ -15,12 +16,13 @@ use Splicewire\Beam\Particle\Attributes\ParticleResource;
  * = own ∪ reach-visible (published) via the cascade; `prepare` owns the shelf on create + defaults
  * it under the user's root; the shared BaseModelPolicy (ShelfPolicy) is the deny-default write gate.
  */
-#[ParticleResource(key: 'shelves', model: Shelf::class, input: ShelfInputData::class, filterable: false, defaultSort: 'name')]
+#[ParticleResource(key: 'shelves', model: Shelf::class, input: ShelfInputData::class, filterable: false)]
 class ShelfData extends Data
 {
     public function __construct(
         public string $id,
         public ?string $parentId,
+        #[Sortable(default: true)]
         public string $name,
         public ?string $visibility,
         public int $bookmarkCount,
