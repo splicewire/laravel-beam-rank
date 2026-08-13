@@ -4,11 +4,13 @@ use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\Gate;
 use Rushing\DataFilters\Attributes\Filterable;
 use Rushing\PermissionCascade\Policies\ConfiguredModelPolicy;
+use Spatie\Activitylog\Models\Activity;
 use Splicewire\Beam\Particle\Attributes\ParticleResource;
 use Splicewire\Beam\Rank\Data\RankData;
 use Splicewire\Beam\Rank\Data\RankTreeData;
 use Splicewire\Beam\Rank\Models\Rank;
 use Splicewire\Beam\Rank\Models\RankTree;
+use Splicewire\Beam\Rank\RankRecorder;
 use Splicewire\Beam\Rank\Ranks;
 use Splicewire\Beam\Rank\RankType;
 use Splicewire\Beam\Rank\Tests\Fixtures\Song;
@@ -141,6 +143,121 @@ it('reorders a tree from an ordered id list', function () {
     $this->ranks->reorder($tree, [$b->id, $a->id]);
 
     expect($a->fresh()->position)->toBe(1)->and($b->fresh()->position)->toBe(0);
+});
+
+// ── the scalar rank type ───────────────────────────────────────────────────────────────
+
+it('rates on the default 0-10 scale, upserting the single scalar row', function () {
+    $first = $this->ranks->rate($this->owner, $this->song, 7);
+    $second = $this->ranks->rate($this->owner, $this->song, 9);
+
+    expect($first->is($second))->toBeTrue()
+        ->and($second->fresh()->value)->toBe(9.0)
+        ->and($second->type)->toBe(RankType::RANK)
+        ->and(Rank::query()->where('type', RankType::RANK)->count())->toBe(1);
+});
+
+it('clamps a rating to the configured bounds, and to explicit ones', function () {
+    expect($this->ranks->rate($this->owner, $this->song, 42)->value)->toBe(10.0)
+        ->and($this->ranks->rate($this->owner, $this->song, -3)->value)->toBe(0.0)
+        ->and($this->ranks->rate($this->owner, $this->song, 42, min: 0, max: 5)->value)->toBe(5.0);
+});
+
+it('keeps a rating independent of toggle gestures on the same target', function () {
+    $this->ranks->toggle($this->owner, $this->song, RankType::LIKE);
+    $this->ranks->rate($this->owner, $this->song, 8);
+
+    expect(Rank::query()->where('rankable_id', (string) $this->song->id)->count())->toBe(2);
+});
+
+it('translates linearly between arbitrary min/max pairs', function () {
+    expect($this->ranks->translate(7, 0, 10, 0, 5))->toBe(3.5)
+        ->and($this->ranks->translate(0, -1, 1, 0, 100))->toBe(50.0)
+        ->and($this->ranks->translate(3, 1, 5, 10, 20))->toBe(15.0)
+        ->and($this->ranks->translate(4, 4, 4, 1, 5))->toBe(1.0); // degenerate scale → toMin
+});
+
+// ── history (RankRecorder over ActivityLog) ────────────────────────────────────────────
+
+it('does not record toggles by default (toggle logging OFF)', function () {
+    $this->ranks->toggle($this->owner, $this->song, RankType::LIKE);
+    $this->ranks->untoggle($this->owner, $this->song, RankType::LIKE);
+
+    expect(app(RankRecorder::class)->history($this->song))->toBe([]);
+});
+
+it('records toggle existence transitions on the TARGET when opted in, surviving deletion', function () {
+    config()->set('beam.rank.log_activity.toggle', true);
+
+    $rank = $this->ranks->toggle($this->owner, $this->song, RankType::LIKE);
+    $rankId = $rank->getKey();
+    $this->ranks->untoggle($this->owner, $this->song, RankType::LIKE);
+
+    $history = app(RankRecorder::class)->history($this->song);
+
+    expect($history)->toHaveCount(2);
+
+    [$off, $on] = $history; // newest first
+    expect($on->cause)->toBe('toggle')
+        ->and($on->old)->toBe([])
+        ->and($on->new)->toBe(['type' => 'like'])
+        ->and($on->correlation)->toBe($rankId)
+        ->and($off->cause)->toBe('untoggle')
+        ->and($off->old)->toBe(['type' => 'like'])
+        ->and($off->new)->toBe([])
+        ->and($off->correlation)->toBe($rankId)
+        ->and($off->subjectType)->toBe('song')
+        ->and($off->causerId)->toBe((string) $this->owner->getKey());
+});
+
+it('records rate old→new diffs by default, and not when opted out', function () {
+    $this->ranks->rate($this->owner, $this->song, 7);
+    $this->ranks->rate($this->owner, $this->song, 9);
+
+    $recorder = app(RankRecorder::class);
+    $history = $recorder->history($this->song);
+
+    expect($history)->toHaveCount(2);
+    [$update, $first] = $history; // newest first
+    expect($first->cause)->toBe('rate')
+        ->and($first->old)->toBe(['value' => null])
+        ->and($first->new)->toEqual(['value' => 7.0])
+        ->and($update->old)->toEqual(['value' => 7.0])
+        ->and($update->new)->toEqual(['value' => 9.0]);
+
+    config()->set('beam.rank.log_activity.rate', false);
+    $this->ranks->rate($this->owner, $this->song, 3);
+
+    expect($recorder->history($this->song))->toHaveCount(2);
+});
+
+it('returns the full cross-actor, cross-type feed on the target after ranks toggle off', function () {
+    config()->set('beam.rank.log_activity.toggle', true);
+
+    $this->ranks->toggle($this->owner, $this->song, RankType::LIKE);
+    $this->ranks->toggle($this->other, $this->song, RankType::FAVORITE);
+    $this->ranks->rate($this->owner, $this->song, 6);
+    $this->ranks->untoggle($this->owner, $this->song, RankType::LIKE);
+
+    $history = app(RankRecorder::class)->history($this->song);
+
+    expect($history)->toHaveCount(4)
+        ->and(collect($history)->pluck('cause')->sort()->values()->all())->toBe(['rate', 'toggle', 'toggle', 'untoggle'])
+        ->and(collect($history)->pluck('causerId')->unique()->count())->toBe(2)
+        ->and(Rank::query()->count())->toBe(2); // like row gone, history intact
+});
+
+it('writes no history entries for a reorder, even with toggle logging on', function () {
+    config()->set('beam.rank.log_activity.toggle', true);
+
+    $tree = $this->ranks->createTree($this->owner, 'One');
+    $a = $this->ranks->toggle($this->owner, Song::create(['title' => 'a']), RankType::FAVORITE, $tree);
+    $b = $this->ranks->toggle($this->owner, Song::create(['title' => 'b']), RankType::FAVORITE, $tree);
+    $before = Activity::query()->count();
+
+    $this->ranks->reorder($tree, [$b->id, $a->id]);
+
+    expect(Activity::query()->count())->toBe($before);
 });
 
 // ── vocabulary ─────────────────────────────────────────────────────────────────────────

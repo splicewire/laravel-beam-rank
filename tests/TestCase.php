@@ -7,6 +7,7 @@ use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 use Orchestra\Testbench\TestCase as Orchestra;
 use Rushing\PermissionCascade\PermissionCascadeServiceProvider;
+use Spatie\Activitylog\ActivitylogServiceProvider;
 use Spatie\Permission\Models\Role;
 use Spatie\Permission\PermissionServiceProvider;
 use Splicewire\Beam\Beam;
@@ -39,6 +40,7 @@ abstract class TestCase extends Orchestra
         return [
             PermissionServiceProvider::class,
             PermissionCascadeServiceProvider::class,
+            ActivitylogServiceProvider::class,
             BeamRankServiceProvider::class,
         ];
     }
@@ -71,6 +73,20 @@ abstract class TestCase extends Orchestra
         Schema::create('songs', function (Blueprint $t): void {
             $t->id();
             $t->string('title')->nullable();
+            $t->timestamps();
+        });
+
+        // spatie/laravel-activitylog storage — the substrate RankRecorder rides.
+        Schema::create('activity_log', function (Blueprint $t): void {
+            $t->bigIncrements('id');
+            $t->string('log_name')->nullable()->index();
+            $t->text('description');
+            $t->nullableMorphs('subject', 'subject');
+            $t->nullableMorphs('causer', 'causer');
+            $t->string('event')->nullable();
+            $t->json('attribute_changes')->nullable();
+            $t->json('properties')->nullable();
+            $t->uuid('batch_uuid')->nullable();
             $t->timestamps();
         });
 

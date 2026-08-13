@@ -10,9 +10,11 @@ use Splicewire\Beam\Rank\Models\RankTree;
 
 /**
  * The Rank + RankTree lifecycle (was Bookmarks): toggle typed gestures onto targets (bare or onto
- * a tree), a per-user root tree, nested trees, ordering, publish. Model classes resolve through
- * `config('beam.rank.models.*')` so a host can subclass. New trees are private by default
- * (visibility null ⇒ steward + grants only via the cascade); publish widens the tier.
+ * a tree), rate on a clamped scalar scale, a per-user root tree, nested trees, ordering, publish.
+ * Model classes resolve through `config('beam.rank.models.*')` so a host can subclass. New trees
+ * are private by default (visibility null ⇒ steward + grants only via the cascade); publish widens
+ * the tier. Mutations record through {@see RankRecorder}, gated by `beam.rank.log_activity.*`
+ * (toggles default OFF, rates default ON — see the recorder's docblock for the payload contract).
  */
 class Ranks
 {
@@ -56,6 +58,10 @@ class Ranks
         if (! $rank->exists) {
             $rank->position = $treeId === null ? null : ($position ?? $this->nextPosition($treeId));
             $rank->save();
+
+            if (config('beam.rank.log_activity.toggle', false)) {
+                $this->recorder()->record($rankable, [], ['type' => $type], 'toggle', (string) $rank->getKey(), $this->actor($user));
+            }
         } elseif ($position !== null) {
             $rank->update(['position' => $position]);
         }
@@ -63,17 +69,82 @@ class Ranks
         return $rank;
     }
 
-    /** Remove a `$type` gesture on `$rankable` for `$user` — from `$tree`, or the bare list when null. */
+    /**
+     * Remove a `$type` gesture on `$rankable` for `$user` — from `$tree`, or the bare list when
+     * null. Rows are fetched before deletion so the pre-image can be recorded (toggle-gated).
+     */
     public function untoggle(Authenticatable $user, Model $rankable, string $type, ?RankTree $tree = null): int
     {
-        return $this->rankModel()::query()
+        $rows = $this->rankModel()::query()
             ->where('user_type', $this->morphClass($user))
             ->where('user_id', (string) $user->getAuthIdentifier())
             ->where('type', $type)
             ->where('rankable_type', $rankable->getMorphClass())
             ->where('rankable_id', (string) $rankable->getKey())
             ->where(fn ($q) => $tree ? $q->where('tree_id', $tree->getKey()) : $q->whereNull('tree_id'))
-            ->delete();
+            ->get();
+
+        foreach ($rows as $rank) {
+            $rank->delete();
+
+            if (config('beam.rank.log_activity.toggle', false)) {
+                $this->recorder()->record($rankable, ['type' => $rank->type], [], 'untoggle', (string) $rank->getKey(), $this->actor($user));
+            }
+        }
+
+        return $rows->count();
+    }
+
+    /**
+     * Set the SCALAR gesture (a Rank row of type {@see RankType::RANK}) on `$rankable` for
+     * `$user`: `$value` is clamped to `$min`/`$max` (defaulted from `config('beam.rank.scales.rank')`),
+     * upserted on the unique tuple, and the old→new diff recorded (rate-gated, default ON).
+     */
+    public function rate(Authenticatable $user, Model $rankable, float $value, ?float $min = null, ?float $max = null, ?RankTree $tree = null): Rank
+    {
+        $scale = (array) config('beam.rank.scales.'.RankType::RANK, []);
+        $min ??= (float) ($scale['min'] ?? 0);
+        $max ??= (float) ($scale['max'] ?? 10);
+        $value = max($min, min($max, $value));
+
+        $treeId = $tree?->getKey();
+
+        $rank = $this->rankModel()::query()->firstOrNew([
+            'user_type' => $this->morphClass($user),
+            'user_id' => (string) $user->getAuthIdentifier(),
+            'type' => RankType::RANK,
+            'rankable_type' => $rankable->getMorphClass(),
+            'rankable_id' => (string) $rankable->getKey(),
+            'tree_id' => $treeId,
+        ]);
+
+        $previous = $rank->exists ? (float) $rank->value : null;
+
+        if (! $rank->exists) {
+            $rank->position = $treeId === null ? null : $this->nextPosition($treeId);
+        }
+        $rank->value = $value;
+        $rank->save();
+
+        if (config('beam.rank.log_activity.rate', true)) {
+            $this->recorder()->record($rankable, ['value' => $previous], ['value' => $value], 'rate', (string) $rank->getKey(), $this->actor($user));
+        }
+
+        return $rank;
+    }
+
+    /**
+     * Linearly rescale `$value` from the `[$fromMin, $fromMax]` scale onto `[$toMin, $toMax]` —
+     * e.g. a stored 0–10 value displayed as 0–5 stars. A pure function: scale bounds are a
+     * translation capability here, never a row-level invariant (`value` stays a bare number).
+     */
+    public function translate(float $value, float $fromMin, float $fromMax, float $toMin, float $toMax): float
+    {
+        if ($fromMax === $fromMin) {
+            return $toMin;
+        }
+
+        return $toMin + ($value - $fromMin) * ($toMax - $toMin) / ($fromMax - $fromMin);
     }
 
     /** Reorder a tree from an ordered list of Rank ids (index ⇒ position). Cosmetic — never logged. */
@@ -116,6 +187,17 @@ class Ranks
     private function morphClass(object $model): string
     {
         return method_exists($model, 'getMorphClass') ? $model->getMorphClass() : $model::class;
+    }
+
+    private function recorder(): RankRecorder
+    {
+        return app(RankRecorder::class);
+    }
+
+    /** The causer for a recorder entry — an Eloquent principal, or null for a non-model actor. */
+    private function actor(Authenticatable $user): ?Model
+    {
+        return $user instanceof Model ? $user : null;
     }
 
     /** @return class-string<RankTree> */
