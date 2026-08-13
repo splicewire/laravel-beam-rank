@@ -2,6 +2,7 @@
 
 namespace Splicewire\Beam\Rank;
 
+use Splicewire\Beam\Activity\ActivityEntry;
 use Splicewire\Beam\Activity\ActivityRecorder;
 use Splicewire\Beam\Revisions\RevisionRecorder;
 
@@ -13,7 +14,8 @@ use Splicewire\Beam\Revisions\RevisionRecorder;
  * {@see RevisionRecorder} ("reversible attribute revisions") — a rank
  * gesture is something that HAPPENED to a target, not a restorable attribute mutation, so the
  * revert/undo semantics never applied here (the owner's ruling: a rank is activity, not a
- * revision).
+ * revision). Accordingly, entries surface as the plain
+ * {@see ActivityEntry}, not the revision-named type.
  *
  * Subject = the RANKABLE TARGET, never the ephemeral Rank row: `history($composition)` returns the
  * full ranking activity feed on that target across every actor and type, and the feed survives
