@@ -4,6 +4,7 @@ namespace Splicewire\Beam\Rank\Tests;
 
 use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Orchestra\Testbench\TestCase as Orchestra;
 use Rushing\PermissionCascade\PermissionCascadeServiceProvider;
@@ -114,6 +115,13 @@ abstract class TestCase extends Orchestra
             $t->timestamps();
             $t->unique(['user_type', 'user_id', 'type', 'rankable_type', 'rankable_id', 'tree_id'], 'ranks_unique');
         });
+
+        // Mirrors the migration's untreed partial unique index (NULL tree_id rows escape
+        // `ranks_unique` because NULLs compare distinct — the DB-level bare-dedup guard).
+        DB::statement(
+            'create unique index ranks_unique_untreed on '.Beam::table('ranks')
+            .' (user_type, user_id, type, rankable_type, rankable_id) where tree_id is null'
+        );
     }
 
     protected function createSpatieSchema(): void

@@ -42,6 +42,18 @@ return new class extends Migration
             $table->index(['rankable_type', 'rankable_id']);
             $table->unique(['user_type', 'user_id', 'type', 'rankable_type', 'rankable_id', 'tree_id'], 'ranks_unique');
         });
+
+        // `ranks_unique` never fires for UNGROUPED rows — `tree_id` is in the tuple and NULLs
+        // compare distinct — which would leave bare same-type dedup resting solely on the
+        // application's firstOrNew (a concurrent-toggle race). A partial unique index closes
+        // it where the driver supports one (pgsql + sqlite — the fleet's two drivers); an
+        // unsupported driver keeps the app-side dedup only.
+        if (in_array(Schema::getConnection()->getDriverName(), ['pgsql', 'sqlite'], true)) {
+            DB::statement(
+                'create unique index ranks_unique_untreed on '.$this->target()
+                .' (user_type, user_id, type, rankable_type, rankable_id) where tree_id is null'
+            );
+        }
     }
 
     public function down(): void

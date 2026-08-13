@@ -73,6 +73,24 @@ it('toggles a gesture bare (the ungrouped list) — tree_id null, deduped', func
         ->and(Rank::query()->count())->toBe(1);
 });
 
+it('enforces bare same-type dedup at the DATABASE, not only via firstOrNew (untreed partial index)', function () {
+    // `ranks_unique` never fires for tree_id-null rows (NULLs compare distinct), so a
+    // concurrent double-toggle used to race past the app-side dedup. The partial unique index
+    // closes it: a raw duplicate insert — bypassing Ranks entirely — must throw.
+    $this->ranks->toggle($this->owner, $this->song, RankType::FAVORITE);
+
+    $existing = Rank::query()->firstOrFail();
+
+    expect(fn () => Rank::query()->create([
+        'user_type' => $existing->user_type,
+        'user_id' => $existing->user_id,
+        'type' => $existing->type,
+        'rankable_type' => $existing->rankable_type,
+        'rankable_id' => $existing->rankable_id,
+        'tree_id' => null,
+    ]))->toThrow(QueryException::class);
+});
+
 it('lets the same actor hold like AND favorite on the same target as two independent rows', function () {
     $like = $this->ranks->toggle($this->owner, $this->song, RankType::LIKE);
     $favorite = $this->ranks->toggle($this->owner, $this->song, RankType::FAVORITE);

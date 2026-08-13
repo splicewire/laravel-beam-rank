@@ -1,8 +1,8 @@
 # Rank
 
 The social-interaction substrate of the Beam family: typed actor→target declarations plus a scalar
-rating, organized into nestable trees. (Repo currently named `laravel-beam-bookmarks`; the in-place
-rename to `laravel-beam-rank` is planned work.)
+rating, organized into nestable trees. (Renamed in place from `laravel-beam-bookmarks`, history
+preserved — bookmarks-to-rank ticket 05.)
 
 ## Language
 

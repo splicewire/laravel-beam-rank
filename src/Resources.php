@@ -76,8 +76,8 @@ class Resources
             return; // beam particle infra absent — nothing to mount.
         }
 
-        $urlKey = $opts['urlKey'] ?? $resourceKey;
-        $groupPrefix = $opts['groupPrefix'] ?? config('beam.rank.resources.group_prefix', 'resources');
+        $urlKey = $opts['url_key'] ?? $resourceKey;
+        $groupPrefix = $opts['group_prefix'] ?? config('beam.rank.resources.group_prefix', 'resources');
         $middleware = $opts['middleware'] ?? config('beam.rank.resources.middleware', ['web', 'auth']);
         $ops = self::operationsFor($resourceKey, $model, $opts);
 
@@ -106,7 +106,7 @@ class Resources
                         'tree_id' => ['nullable', 'string'],
                         'position' => ['nullable', 'integer'],
                     ]);
-                    $tree = isset($data['tree_id']) ? RankTree::query()->findOrFail($data['tree_id']) : null;
+                    $tree = isset($data['tree_id']) ? self::treeModel()::query()->findOrFail($data['tree_id']) : null;
                     $rank = app(Ranks::class)->toggle($request->user(), $resource, $data['type'], $tree, $data['position'] ?? null);
 
                     return ['data' => ['id' => $rank->id, 'type' => $rank->type, 'tree_id' => $rank->tree_id, 'position' => $rank->position]];
@@ -119,7 +119,7 @@ class Resources
                         'type' => ['required', 'string'],
                         'tree_id' => ['nullable', 'string'],
                     ]);
-                    $tree = isset($data['tree_id']) ? RankTree::query()->findOrFail($data['tree_id']) : null;
+                    $tree = isset($data['tree_id']) ? self::treeModel()::query()->findOrFail($data['tree_id']) : null;
 
                     return ['data' => ['removed' => app(Ranks::class)->untoggle($request->user(), $resource, $data['type'], $tree)]];
                 },
@@ -149,7 +149,7 @@ class Resources
     private static function toggle(Request $request, bool $remove): array
     {
         $rankable = self::resolveMorph((string) $request->input('rankable_type'), (string) $request->input('rankable_id'));
-        $tree = $request->filled('tree_id') ? RankTree::query()->findOrFail($request->input('tree_id')) : null;
+        $tree = $request->filled('tree_id') ? self::treeModel()::query()->findOrFail($request->input('tree_id')) : null;
         $type = (string) $request->input('type');
         $action = app(Ranks::class);
 
@@ -165,7 +165,7 @@ class Resources
     private static function rate(Request $request): array
     {
         $rankable = self::resolveMorph((string) $request->input('rankable_type'), (string) $request->input('rankable_id'));
-        $tree = $request->filled('tree_id') ? RankTree::query()->findOrFail($request->input('tree_id')) : null;
+        $tree = $request->filled('tree_id') ? self::treeModel()::query()->findOrFail($request->input('tree_id')) : null;
 
         $rank = app(Ranks::class)->rate(
             $request->user(),
@@ -184,5 +184,16 @@ class Resources
         $class = Relation::getMorphedModel($type) ?? $type;
 
         return $class::query()->findOrFail($id);
+    }
+
+    /**
+     * The tree model behind the `beam.rank.models.tree` seam — the same seam {@see Ranks}
+     * honors, so a host substituting its own tree model is respected on every lookup path.
+     *
+     * @return class-string<RankTree>
+     */
+    private static function treeModel(): string
+    {
+        return config('beam.rank.models.tree', RankTree::class);
     }
 }
