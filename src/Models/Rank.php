@@ -11,6 +11,7 @@ use Rushing\PermissionCascade\Concerns\HasMorphUser;
 use Rushing\PermissionCascade\Policies\BaseModelPolicy;
 use Splicewire\Beam\Beam;
 use Splicewire\Beam\Rank\RankType;
+use Splicewire\Beam\Rank\Resources;
 
 /**
  * A Rank (was Bookmark) — THE atom: one actor (`user`, via permission-cascade HasMorphUser)
@@ -42,6 +43,21 @@ class Rank extends Model
     public function getTable(): string
     {
         return Beam::table('ranks');
+    }
+
+    /**
+     * Mount toggle/untoggle/rate operations scoped to one host model with a single call —
+     * `Rank::attachTo('songs', Composition::class)` → `songs/{song}/op/rank-toggle` etc.
+     * ADDITIVE to the global `/resources/ranks` surface, never a replacement: a per-model mount
+     * can't answer "all of my likes across every type and target", so both stay available.
+     * Mirrors `laravel-beam-accounts`'s `Sharing::attachTo()`; delegates to
+     * {@see Resources::attachTo()}.
+     *
+     * @param  class-string<Model>  $model
+     */
+    public static function attachTo(string $resourceKey, string $model, array $opts = []): void
+    {
+        Resources::attachTo($resourceKey, $model, $opts);
     }
 
     public function rankable(): MorphTo

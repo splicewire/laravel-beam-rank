@@ -1,11 +1,13 @@
 <?php
 
 use Illuminate\Database\QueryException;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 use Rushing\DataFilters\Attributes\Filterable;
 use Rushing\PermissionCascade\Policies\ConfiguredModelPolicy;
 use Spatie\Activitylog\Models\Activity;
 use Splicewire\Beam\Particle\Attributes\ParticleResource;
+use Splicewire\Beam\Particle\OperationKind;
 use Splicewire\Beam\Rank\Data\RankData;
 use Splicewire\Beam\Rank\Data\RankTreeData;
 use Splicewire\Beam\Rank\Models\Rank;
@@ -13,6 +15,7 @@ use Splicewire\Beam\Rank\Models\RankTree;
 use Splicewire\Beam\Rank\RankRecorder;
 use Splicewire\Beam\Rank\Ranks;
 use Splicewire\Beam\Rank\RankType;
+use Splicewire\Beam\Rank\Resources;
 use Splicewire\Beam\Rank\Tests\Fixtures\Song;
 use Splicewire\Beam\Rank\Tests\Fixtures\User;
 
@@ -258,6 +261,54 @@ it('writes no history entries for a reorder, even with toggle logging on', funct
     $this->ranks->reorder($tree, [$b->id, $a->id]);
 
     expect(Activity::query()->count())->toBe($before);
+});
+
+// ── the per-model mount (Rank::attachTo → Resources::operationsFor) ────────────────────
+
+it('builds the three per-model write operations with the view ability by default', function () {
+    $ops = Resources::operationsFor('songs', Song::class);
+
+    expect(collect($ops)->map(fn ($op) => $op->name)->all())->toBe(['rank-toggle', 'rank-untoggle', 'rank-rate'])
+        ->and(collect($ops)->every(fn ($op) => $op->resource === 'songs'
+            && $op->model === Song::class
+            && $op->ability === 'view'
+            && $op->kind === OperationKind::Write))->toBeTrue();
+
+    $custom = Resources::operationsFor('songs', Song::class, ['ability' => 'update']);
+    expect($custom[0]->ability)->toBe('update');
+});
+
+it('toggles, untoggles, and rates through the per-model op handlers with the type parameter', function () {
+    [$toggle, $untoggle, $rate] = Resources::operationsFor('songs', Song::class);
+    $asOwner = function (array $payload) {
+        $request = Request::create('/op', 'POST', $payload);
+        $request->setUserResolver(fn () => $this->owner);
+
+        return $request;
+    };
+
+    $made = ($toggle->handle)($this->song, $asOwner(['type' => 'favorite']));
+    expect($made['data']['type'])->toBe('favorite')
+        ->and(Rank::query()->where('type', 'favorite')->count())->toBe(1);
+
+    $rated = ($rate->handle)($this->song, $asOwner(['value' => 42]));
+    expect($rated['data']['value'])->toBe(10.0); // clamped to the configured scale
+
+    $removed = ($untoggle->handle)($this->song, $asOwner(['type' => 'favorite']));
+    expect($removed['data']['removed'])->toBe(1)
+        ->and(Rank::query()->where('type', 'favorite')->count())->toBe(0)
+        ->and(Rank::query()->where('type', RankType::RANK)->count())->toBe(1); // rate row untouched
+});
+
+it('scopes the global ranks resource to the acting owner', function () {
+    $this->ranks->toggle($this->owner, $this->song, RankType::LIKE);
+    $this->ranks->toggle($this->other, $this->song, RankType::LIKE);
+
+    $this->actingAs($this->owner);
+    $rows = RankData::scope(Rank::query())->get();
+
+    expect($rows)->toHaveCount(1)
+        ->and((string) $rows->first()->user_id)->toBe((string) $this->owner->getKey());
 });
 
 // ── vocabulary ─────────────────────────────────────────────────────────────────────────
