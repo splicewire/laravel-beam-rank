@@ -10,8 +10,10 @@ use Splicewire\Beam\Particle\Attributes\ParticleResource;
 use Splicewire\Beam\Particle\OperationKind;
 use Splicewire\Beam\Rank\Data\RankData;
 use Splicewire\Beam\Rank\Data\RankTreeData;
+use Splicewire\Beam\Rank\Data\RankTreeReorderData;
 use Splicewire\Beam\Rank\Models\Rank;
 use Splicewire\Beam\Rank\Models\RankTree;
+use Splicewire\Beam\Rank\Ops\ReorderRanks;
 use Splicewire\Beam\Rank\RankRecorder;
 use Splicewire\Beam\Rank\Ranks;
 use Splicewire\Beam\Rank\RankType;
@@ -306,16 +308,32 @@ it('toggles, untoggles, and rates through the per-model op handlers with the typ
     };
 
     $made = ($toggle->handle)($this->song, $asOwner(['type' => 'favorite']));
-    expect($made['data']['type'])->toBe('favorite')
+    expect($made)->toBeInstanceOf(RankData::class)
+        ->and($made->type)->toBe('favorite')
+        ->and($made->treeId)->toBeNull()
         ->and(Rank::query()->where('type', 'favorite')->count())->toBe(1);
 
     $rated = ($rate->handle)($this->song, $asOwner(['value' => 42]));
-    expect($rated['data']['value'])->toBe(10.0); // clamped to the configured scale
+    expect($rated->value)->toBe(10.0); // clamped to the configured scale
 
     $removed = ($untoggle->handle)($this->song, $asOwner(['type' => 'favorite']));
-    expect($removed['data']['removed'])->toBe(1)
+    expect($removed->removed)->toBe(1)
         ->and(Rank::query()->where('type', 'favorite')->count())->toBe(0)
         ->and(Rank::query()->where('type', RankType::RANK)->count())->toBe(1); // rate row untouched
+});
+
+it('reorders through the ReorderRanks op class, returning the typed reorder output', function () {
+    $tree = $this->ranks->createTree($this->owner, 'One');
+    $a = $this->ranks->toggle($this->owner, Song::create(['title' => 'a']), RankType::FAVORITE, $tree);
+    $b = $this->ranks->toggle($this->owner, Song::create(['title' => 'b']), RankType::FAVORITE, $tree);
+
+    $out = ReorderRanks::handle($tree, Request::create('/op', 'POST', ['ids' => [$b->id, $a->id]]));
+
+    expect($out)->toBeInstanceOf(RankTreeReorderData::class)
+        ->and($out->id)->toBe((string) $tree->getKey())
+        ->and($out->ordered)->toBe(2)
+        ->and($a->fresh()->position)->toBe(1)
+        ->and($b->fresh()->position)->toBe(0);
 });
 
 it('scopes the global ranks resource to the acting owner', function () {

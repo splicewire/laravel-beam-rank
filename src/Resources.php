@@ -3,7 +3,6 @@
 namespace Splicewire\Beam\Rank;
 
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use Splicewire\Beam\Particle\Attributes\AttributedParticleDiscovery;
@@ -11,16 +10,20 @@ use Splicewire\Beam\Particle\OperationKind;
 use Splicewire\Beam\Particle\ParticleOperation;
 use Splicewire\Beam\Particle\ParticleOperationRegistry;
 use Splicewire\Beam\Rank\Data\RankData;
+use Splicewire\Beam\Rank\Data\RankRemovedData;
 use Splicewire\Beam\Rank\Data\RankTreeData;
-use Splicewire\Beam\Rank\Models\Rank;
-use Splicewire\Beam\Rank\Models\RankTree;
+use Splicewire\Beam\Rank\Ops\RateRank;
+use Splicewire\Beam\Rank\Ops\ReorderRanks;
+use Splicewire\Beam\Rank\Ops\ToggleRank;
+use Splicewire\Beam\Rank\Ops\UntoggleRank;
 
 /**
  * Register + mount the rank-trees/ranks particle surface. Reads are the declarative
- * {@see RankTreeData}/{@see RankData} resources (discovered here); dedup-aware toggles + reorder
- * are operations over the {@see Ranks} action. Guarded on the beam particle infra so the package
- * boots (and its standalone suite runs) without laravel-beam's route macros present — a host with
- * beam mounts the surface; the package unit-tests scope/project + the action directly.
+ * {@see RankTreeData}/{@see RankData} resources (discovered here); writes are the `src/Ops/`
+ * single-operation classes (ADR-0160/HTTP-10 — one class per operation, logic lives ONCE, in Ops).
+ * Guarded on the beam particle infra so the package boots (and its standalone suite runs) without
+ * laravel-beam's route macros present — a host with beam mounts the surface; the package
+ * unit-tests scope/project + the action + the op handlers directly.
  */
 class Resources
 {
@@ -35,27 +38,21 @@ class Resources
 
         app(AttributedParticleDiscovery::class)->discover([RankTreeData::class, RankData::class]);
 
-        // The reorder write op is an inline particle operation; `Route::particleOps` (HTTP-02) registers it
-        // AND mounts it.
-        $reorderOp = new ParticleOperation(
-            resource: 'rank-trees', name: 'reorder', kind: OperationKind::Write, model: RankTree::class, ability: 'update',
-            handle: function (RankTree $tree, Request $request) {
-                app(Ranks::class)->reorder($tree, (array) $request->input('ids', []));
-
-                return ['data' => ['id' => $tree->getKey(), 'ordered' => count((array) $request->input('ids', []))]];
-            },
-        );
-
-        Route::middleware($middleware)->prefix($groupPrefix)->group(function () use ($reorderOp) {
+        Route::middleware($middleware)->prefix($groupPrefix)->group(function () {
             Route::particleResource('rank-trees', 'rank-trees', ['only' => ['index', 'store', 'update', 'destroy']]);
             Route::particleResource('ranks', 'ranks', ['only' => ['index', 'destroy']]);
-            Route::particleOps('rank-trees', 'rank-trees', [$reorderOp]);
+
+            // The reorder write op is a `#[ParticleOp]` Ops class; `Route::particleOps` (HTTP-02)
+            // discovers (registers) it AND mounts it.
+            Route::particleOps('rank-trees', 'rank-trees', [ReorderRanks::class]);
 
             // Dedup-aware toggle/untoggle/rate over the action (a bare create can't dedup on the
-            // full unique tuple) — stay bespoke, not ops.
-            Route::post('ranks/toggle', fn (Request $r) => ['data' => self::toggle($r, false)]);
-            Route::post('ranks/untoggle', fn (Request $r) => ['data' => self::toggle($r, true)]);
-            Route::post('ranks/rate', fn (Request $r) => ['data' => self::rate($r)]);
+            // full unique tuple). Collection-level — the target arrives as body morph keys, so
+            // there's no `{id}` segment for an op mount and the routes stay bespoke — but each
+            // body delegates to its Ops class, the single home of the handler logic.
+            Route::post('ranks/toggle', fn (Request $r) => ['data' => ToggleRank::bare($r)]);
+            Route::post('ranks/untoggle', fn (Request $r) => ['data' => UntoggleRank::bare($r)]);
+            Route::post('ranks/rate', fn (Request $r) => ['data' => RateRank::bare($r)]);
         });
     }
 
@@ -90,6 +87,11 @@ class Resources
      * Build the three per-model rank operations (pure — the mountable half of {@see attachTo},
      * separately callable so the op contract is testable without the beam route macros).
      *
+     * The (resource, model) pair is RUNTIME input, so these declarations genuinely cannot ride a
+     * static `#[ParticleOp]` attribute — the construction stays a thin runtime
+     * {@see ParticleOperation}, but every handler is the corresponding Ops class's `handle`
+     * (first-class callable), so the logic lives once, in Ops.
+     *
      * @param  class-string<Model>  $model
      * @return array<int, ParticleOperation>
      */
@@ -99,101 +101,17 @@ class Resources
 
         return [
             new ParticleOperation(
-                resource: $resourceKey, name: 'rank-toggle', kind: OperationKind::Write, model: $model, ability: $ability,
-                handle: function (Model $resource, Request $request) {
-                    $data = $request->validate([
-                        'type' => ['required', 'string'],
-                        'tree_id' => ['nullable', 'string'],
-                        'position' => ['nullable', 'integer'],
-                    ]);
-                    $tree = isset($data['tree_id']) ? self::treeModel()::query()->findOrFail($data['tree_id']) : null;
-                    $rank = app(Ranks::class)->toggle($request->user(), $resource, $data['type'], $tree, $data['position'] ?? null);
-
-                    return ['data' => ['id' => $rank->id, 'type' => $rank->type, 'tree_id' => $rank->tree_id, 'position' => $rank->position]];
-                },
+                resource: $resourceKey, name: 'rank-toggle', kind: OperationKind::Write, model: $model,
+                ability: $ability, handle: ToggleRank::handle(...), output: RankData::class,
             ),
             new ParticleOperation(
-                resource: $resourceKey, name: 'rank-untoggle', kind: OperationKind::Write, model: $model, ability: $ability,
-                handle: function (Model $resource, Request $request) {
-                    $data = $request->validate([
-                        'type' => ['required', 'string'],
-                        'tree_id' => ['nullable', 'string'],
-                    ]);
-                    $tree = isset($data['tree_id']) ? self::treeModel()::query()->findOrFail($data['tree_id']) : null;
-
-                    return ['data' => ['removed' => app(Ranks::class)->untoggle($request->user(), $resource, $data['type'], $tree)]];
-                },
+                resource: $resourceKey, name: 'rank-untoggle', kind: OperationKind::Write, model: $model,
+                ability: $ability, handle: UntoggleRank::handle(...), output: RankRemovedData::class,
             ),
             new ParticleOperation(
-                resource: $resourceKey, name: 'rank-rate', kind: OperationKind::Write, model: $model, ability: $ability,
-                handle: function (Model $resource, Request $request) {
-                    $data = $request->validate([
-                        'value' => ['required', 'numeric'],
-                        'min' => ['nullable', 'numeric'],
-                        'max' => ['nullable', 'numeric'],
-                    ]);
-                    $rank = app(Ranks::class)->rate(
-                        $request->user(),
-                        $resource,
-                        (float) $data['value'],
-                        isset($data['min']) ? (float) $data['min'] : null,
-                        isset($data['max']) ? (float) $data['max'] : null,
-                    );
-
-                    return ['data' => ['id' => $rank->id, 'type' => $rank->type, 'value' => $rank->value]];
-                },
+                resource: $resourceKey, name: 'rank-rate', kind: OperationKind::Write, model: $model,
+                ability: $ability, handle: RateRank::handle(...), output: RankData::class,
             ),
         ];
-    }
-
-    private static function toggle(Request $request, bool $remove): array
-    {
-        $rankable = self::resolveMorph((string) $request->input('rankable_type'), (string) $request->input('rankable_id'));
-        $tree = $request->filled('tree_id') ? self::treeModel()::query()->findOrFail($request->input('tree_id')) : null;
-        $type = (string) $request->input('type');
-        $action = app(Ranks::class);
-
-        if ($remove) {
-            return ['removed' => $action->untoggle($request->user(), $rankable, $type, $tree)];
-        }
-
-        $rank = $action->toggle($request->user(), $rankable, $type, $tree, $request->input('position'));
-
-        return ['id' => $rank->id, 'type' => $rank->type, 'tree_id' => $rank->tree_id, 'position' => $rank->position];
-    }
-
-    private static function rate(Request $request): array
-    {
-        $rankable = self::resolveMorph((string) $request->input('rankable_type'), (string) $request->input('rankable_id'));
-        $tree = $request->filled('tree_id') ? self::treeModel()::query()->findOrFail($request->input('tree_id')) : null;
-
-        $rank = app(Ranks::class)->rate(
-            $request->user(),
-            $rankable,
-            (float) $request->input('value'),
-            $request->filled('min') ? (float) $request->input('min') : null,
-            $request->filled('max') ? (float) $request->input('max') : null,
-            $tree,
-        );
-
-        return ['id' => $rank->id, 'type' => $rank->type, 'value' => $rank->value, 'tree_id' => $rank->tree_id];
-    }
-
-    private static function resolveMorph(string $type, string $id): Model
-    {
-        $class = Relation::getMorphedModel($type) ?? $type;
-
-        return $class::query()->findOrFail($id);
-    }
-
-    /**
-     * The tree model behind the `beam.rank.models.tree` seam — the same seam {@see Ranks}
-     * honors, so a host substituting its own tree model is respected on every lookup path.
-     *
-     * @return class-string<RankTree>
-     */
-    private static function treeModel(): string
-    {
-        return config('beam.rank.models.tree', RankTree::class);
     }
 }
