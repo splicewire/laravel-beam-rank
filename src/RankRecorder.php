@@ -2,11 +2,18 @@
 
 namespace Splicewire\Beam\Rank;
 
+use Splicewire\Beam\Activity\ActivityRecorder;
 use Splicewire\Beam\Revisions\RevisionRecorder;
 
 /**
- * Rank mutation history, riding beam-core's existing ActivityLog substrate ({@see RevisionRecorder})
+ * Rank mutation history, riding beam-core's ActivityLog substrate ({@see ActivityRecorder})
  * under its own `log_name` — no new audit infra.
+ *
+ * Extends {@see ActivityRecorder} ("activity onto the log substrate"), NOT
+ * {@see RevisionRecorder} ("reversible attribute revisions") — a rank
+ * gesture is something that HAPPENED to a target, not a restorable attribute mutation, so the
+ * revert/undo semantics never applied here (the owner's ruling: a rank is activity, not a
+ * revision).
  *
  * Subject = the RANKABLE TARGET, never the ephemeral Rank row: `history($composition)` returns the
  * full ranking activity feed on that target across every actor and type, and the feed survives
@@ -23,7 +30,7 @@ use Splicewire\Beam\Revisions\RevisionRecorder;
  * (highest-volume event class in a fleet with zero activitylog pruning), rates default ON.
  * ActivityLog is evidence-grade only — explicitly declined as a custody record.
  */
-class RankRecorder extends RevisionRecorder
+class RankRecorder extends ActivityRecorder
 {
     protected function logName(): string
     {

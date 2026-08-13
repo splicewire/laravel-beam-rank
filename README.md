@@ -41,7 +41,9 @@ rescales a value between arbitrary min/max pairs (store 0–10, render 5 stars).
 
 ## History (rides ActivityLog)
 
-`RankRecorder` extends beam-core's `RevisionRecorder` (log name `beam-rank`). **Subject is the
+`RankRecorder` extends beam-core's `Activity\ActivityRecorder` (log name `beam-rank`) — the
+"activity onto the log substrate" base, NOT `RevisionRecorder`: a rank gesture is activity, not a
+reversible attribute revision, so the revert/undo semantics never applied. **Subject is the
 rankable target**, so `history($record)` is the full cross-actor, cross-type feed on that record
 and survives ranks being toggled off; `correlation` threads one rank's lifecycle. Two fixed
 payload shapes: toggles record existence transitions (`[] → {type}` / `{type} → []`), rates record
@@ -60,7 +62,13 @@ Declarative `#[ParticleResource]` Data classes (`Data\RankTreeData`, `Data\RankD
   (ownership stamps via the `HasMorphUser` creating hook).
 - **`ranks`** — index scoped to the current user, **filterable by `type`, `treeId`, and
   `rankableType`** (`?filter[type]=favorite`) + destroy. Dedup-aware `toggle` / `untoggle` / `rate`
-  are bespoke routes over the `Ranks` action (a bare create can't dedup).
+  are bespoke collection-level routes over the `Ranks` action (a bare create can't dedup), each
+  delegating to its `Ops\*` class.
+
+Write handlers live one-per-class in `src/Ops/` (`ToggleRank`, `UntoggleRank`, `RateRank`,
+`ReorderRanks` — the last a `#[ParticleOp]` class). Op outputs are Data classes on the camelCase
+property convention (`RankData`, `RankRemovedData`, `RankTreeReorderData`), never hand-rolled
+snake_case arrays.
 
 **Per-model mount:** `Rank::attachTo('songs', Composition::class)` mounts
 `songs/{song}/op/rank-toggle`, `.../rank-untoggle`, `.../rank-rate` — operations scoped to one
