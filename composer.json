@@ -1,7 +1,7 @@
 {
-    "name": "splicewire/laravel-beam-bookmarks",
-    "description": "Save lists of particles for beam sites: a generic Bookmark (a saved particle) + a Shelf (a named, orderable, shareable, nestable grouping of bookmarks), on the permission-cascade visibility substrate (HasVisibility + HasUser) and staudenmeir adjacency. Declarative particle resources (shelves + bookmarks) for read/write/hydrate/edit. A host maps its own vocabulary onto a Shelf (audiostud: a 'playlist' is a shelf of song bookmarks).",
-    "keywords": ["laravel", "schemastud", "beam", "bookmarks", "shelves", "taxonomy"],
+    "name": "splicewire/laravel-beam-rank",
+    "description": "The Rank substrate for beam sites: any actor attaches a typed gesture (like, dislike, favorite, friend, follow, ignore, silence, block, plus a scalar rank with translatable bounds) to any target, optionally organized into a RankTree (a named, orderable, shareable, nestable grouping). Ownership rides permission-cascade's HasMorphUser; mutation history rides beam-core's ActivityLog substrate. Declarative particle resources (rank-trees + ranks). A host maps its own vocabulary onto the types (audiostud: 'Save' is a favorite; a 'playlist' is a rank tree).",
+    "keywords": ["laravel", "schemastud", "beam", "rank", "social", "taxonomy"],
     "license": "MIT",
     "authors": [{ "name": "Stephen Rushing", "email": "stephen@rushing.dev" }],
     "require": {
@@ -11,30 +11,50 @@
         "illuminate/support": "^11.0|^12.0|^13.0",
         "rushing/laravel-data-filters": "*",
         "rushing/laravel-permission-cascade": "*",
+        "spatie/laravel-package-tools": "^1.16",
         "splicewire/laravel-beam": "*",
         "staudenmeir/laravel-adjacency-list": "*"
     },
     "require-dev": {
+        "laravel/pint": "^1.0",
         "orchestra/testbench": "^9.0|^10.0|^11.0",
         "pestphp/pest": "^2.0|^3.0",
-        "laravel/pint": "^1.0"
+        "wikimedia/composer-merge-plugin": "^2.1"
     },
-    "autoload": { "psr-4": { "Splicewire\\Beam\\Bookmarks\\": "src/" } },
-    "autoload-dev": { "psr-4": { "Splicewire\\Beam\\Bookmarks\\Tests\\": "tests/" } },
+    "autoload": { "psr-4": { "Splicewire\\Beam\\Rank\\": "src/" } },
+    "autoload-dev": { "psr-4": { "Splicewire\\Beam\\Rank\\Tests\\": "tests/" } },
     "extra": {
+        "package-topology": {
+            "because": "beam-rank is a beam-family package: it depends DOWN on beam-core + permission-cascade + adjacency and must never require the tower/satellite tiers it is consumed by, nor any AI vendor",
+            "mustRequire": [
+                "splicewire/laravel-beam",
+                "rushing/laravel-permission-cascade",
+                "staudenmeir/laravel-adjacency-list"
+            ],
+            "mustNotRequire": [
+                "splicewire/tower*",
+                "splicewire/laravel-tower-*",
+                "splicewire/laravel-satellite*",
+                "prism*",
+                "prism-php/*",
+                "laravel/mcp",
+                "anthropic*",
+                "openai*"
+            ]
+        },
         "branch-alias": { "dev-main": "1.0.x-dev" },
-        "laravel": { "providers": ["Splicewire\\Beam\\Bookmarks\\BeamBookmarksServiceProvider"] }
+        "laravel": { "providers": ["Splicewire\\Beam\\Rank\\BeamRankServiceProvider"] },
+        "merge-plugin": { "include": ["composer.local.json"] }
     },
-    "repositories": [
-        { "type": "path", "url": "../*", "options": { "symlink": true } },
-        { "type": "path", "url": "../../rushing/*", "options": { "symlink": true } },
-        { "type": "path", "url": "../../schemastud/*", "options": { "symlink": true } }
-    ],
     "minimum-stability": "dev",
     "prefer-stable": true,
     "scripts": { "test": "vendor/bin/pest", "pint": "@php -d memory_limit=512M vendor/bin/pint" },
     "config": {
         "sort-packages": true,
-        "allow-plugins": { "pestphp/pest-plugin": true, "php-http/discovery": true }
+        "allow-plugins": {
+            "pestphp/pest-plugin": true,
+            "php-http/discovery": true,
+            "wikimedia/composer-merge-plugin": true
+        }
     }
 }

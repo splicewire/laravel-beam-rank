@@ -1,6 +1,6 @@
 <?php
 
-namespace Splicewire\Beam\Bookmarks\Tests\Fixtures;
+namespace Splicewire\Beam\Rank\Tests\Fixtures;
 
 use Illuminate\Database\Eloquent\Model;
 

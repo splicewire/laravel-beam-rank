@@ -1,5 +1,5 @@
 <?php
 
-use Splicewire\Beam\Bookmarks\Tests\TestCase;
+use Splicewire\Beam\Rank\Tests\TestCase;
 
 uses(TestCase::class)->in('.');

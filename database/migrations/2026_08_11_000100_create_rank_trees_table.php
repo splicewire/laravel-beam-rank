@@ -7,10 +7,12 @@ use Illuminate\Support\Facades\Schema;
 use Splicewire\Beam\Beam;
 
 /**
- * `beam_bookmarks` — THE atom (ADR-0009, tracer 09): a user saved a particle, optionally filed on
- * a shelf at a position. `shelf_id = null` is the ungrouped "Saved" list. Morph keys are strings
- * (cross-host uuid/bigint). Unique per (user, bookmarkable, shelf) so a particle appears once per
- * shelf and once bare. Net-new, create-only, current-schema guarded (tenant-safe).
+ * `beam_rank_trees` — a named, nestable, orderable, shareable grouping of Ranks (was
+ * `beam_shelves`). Net-new, create-only, current-schema guarded (tenant-safe). `visibility` is the
+ * permission-cascade reach tier (host vocabulary); `parent_id` is the adjacency parent (nested
+ * under a per-user root). NEW versus the shelf shape: `user_type`/`user_id` — single owner via
+ * direct morph columns (permission-cascade HasMorphUser), replacing the multi-owner `userables`
+ * pivot the Shelf rode.
  */
 return new class extends Migration
 {
@@ -23,17 +25,14 @@ return new class extends Migration
 
         Schema::create($this->target(), function (Blueprint $table): void {
             $table->uuid('id')->primary();
-            $table->string('user_type');
-            $table->string('user_id');
-            $table->string('bookmarkable_type');
-            $table->string('bookmarkable_id');
-            $table->uuid('shelf_id')->nullable()->index();
-            $table->unsignedInteger('position')->nullable();
+            $table->uuid('parent_id')->nullable()->index();
+            $table->string('user_type')->nullable();
+            $table->string('user_id')->nullable();
+            $table->string('name');
+            $table->string('visibility')->nullable()->index();
             $table->timestamps();
 
             $table->index(['user_type', 'user_id']);
-            $table->index(['bookmarkable_type', 'bookmarkable_id']);
-            $table->unique(['user_type', 'user_id', 'bookmarkable_type', 'bookmarkable_id', 'shelf_id'], 'bookmarks_unique');
         });
     }
 
@@ -44,7 +43,7 @@ return new class extends Migration
 
     private function target(): string
     {
-        return Beam::table('bookmarks');
+        return Beam::table('rank_trees');
     }
 
     private function exists(string $schema, string $table): bool

@@ -1,6 +1,6 @@
 <?php
 
-namespace Splicewire\Beam\Bookmarks\Tests;
+namespace Splicewire\Beam\Rank\Tests;
 
 use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Database\Schema\Blueprint;
@@ -10,10 +10,11 @@ use Rushing\PermissionCascade\PermissionCascadeServiceProvider;
 use Spatie\Permission\Models\Role;
 use Spatie\Permission\PermissionServiceProvider;
 use Splicewire\Beam\Beam;
-use Splicewire\Beam\Bookmarks\BeamBookmarksServiceProvider;
-use Splicewire\Beam\Bookmarks\Models\Shelf;
-use Splicewire\Beam\Bookmarks\Tests\Fixtures\Song;
-use Splicewire\Beam\Bookmarks\Tests\Fixtures\User;
+use Splicewire\Beam\Rank\BeamRankServiceProvider;
+use Splicewire\Beam\Rank\Models\Rank;
+use Splicewire\Beam\Rank\Models\RankTree;
+use Splicewire\Beam\Rank\Tests\Fixtures\Song;
+use Splicewire\Beam\Rank\Tests\Fixtures\User;
 
 abstract class TestCase extends Orchestra
 {
@@ -24,7 +25,8 @@ abstract class TestCase extends Orchestra
         Relation::enforceMorphMap([
             'user' => User::class,
             'song' => Song::class,
-            'shelf' => Shelf::class,
+            'rank-tree' => RankTree::class,
+            'rank' => Rank::class,
             'role' => Role::class,
         ]);
 
@@ -37,7 +39,7 @@ abstract class TestCase extends Orchestra
         return [
             PermissionServiceProvider::class,
             PermissionCascadeServiceProvider::class,
-            BeamBookmarksServiceProvider::class,
+            BeamRankServiceProvider::class,
         ];
     }
 
@@ -52,9 +54,9 @@ abstract class TestCase extends Orchestra
         // Single-tenant test: teams off; the package migrations are Postgres-guarded (schema is hand-built below).
         $c->set('permission-cascade.manage_spatie_teams', false);
         $c->set('permission.teams', false);
-        $c->set('beam.bookmarks.register_migrations', false);
+        $c->set('beam.rank.register_migrations', false);
         // The particle surface needs laravel-beam's route macros (absent here) — Resources::register no-ops.
-        $c->set('beam.bookmarks.register_resources', false);
+        $c->set('beam.rank.register_resources', false);
     }
 
     protected function createFixtureSchema(): void
@@ -72,31 +74,29 @@ abstract class TestCase extends Orchestra
             $t->timestamps();
         });
 
-        // permission-cascade HasUser ownership pivot.
-        Schema::create('userables', function (Blueprint $t): void {
-            $t->unsignedBigInteger('user_id');
-            $t->string('userable_type');
-            $t->string('userable_id');
-        });
-
-        Schema::create(Beam::table('shelves'), function (Blueprint $t): void {
+        Schema::create(Beam::table('rank_trees'), function (Blueprint $t): void {
             $t->uuid('id')->primary();
             $t->uuid('parent_id')->nullable()->index();
+            $t->string('user_type')->nullable();
+            $t->string('user_id')->nullable();
             $t->string('name');
             $t->string('visibility')->nullable()->index();
             $t->timestamps();
+            $t->index(['user_type', 'user_id']);
         });
 
-        Schema::create(Beam::table('bookmarks'), function (Blueprint $t): void {
+        Schema::create(Beam::table('ranks'), function (Blueprint $t): void {
             $t->uuid('id')->primary();
             $t->string('user_type');
             $t->string('user_id');
-            $t->string('bookmarkable_type');
-            $t->string('bookmarkable_id');
-            $t->uuid('shelf_id')->nullable()->index();
+            $t->string('type')->index();
+            $t->string('rankable_type');
+            $t->string('rankable_id');
+            $t->uuid('tree_id')->nullable()->index();
             $t->unsignedInteger('position')->nullable();
+            $t->double('value')->nullable();
             $t->timestamps();
-            $t->unique(['user_type', 'user_id', 'bookmarkable_type', 'bookmarkable_id', 'shelf_id'], 'bookmarks_unique');
+            $t->unique(['user_type', 'user_id', 'type', 'rankable_type', 'rankable_id', 'tree_id'], 'ranks_unique');
         });
     }
 
