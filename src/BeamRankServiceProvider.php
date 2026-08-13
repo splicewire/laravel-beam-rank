@@ -24,11 +24,14 @@ class BeamRankServiceProvider extends PackageServiceProvider
         // (publish-only), and this package keeps the auto-loaded-at-boot idiom — a host opts out
         // via config('beam.rank.register_migrations').
         //
-        // Migrations live under `database/migrations/shared/` — the estate convention for an
-        // identical central+tenant shape (see laravel-beam / laravel-beam-accounts): a publish
-        // lands them in the host's `database/migrations/shared/`, the path beam-tenancy's
-        // registerSharedMigrationsPath() runs on BOTH connections. Auto-run posture unchanged —
-        // package-tools loads each file by its full `shared/`-prefixed path.
+        // Migrations live under `database/migrations/shared/` — the fleet's shared-by-default
+        // ruling (runbook references/multitenancy.md): migrations and models are central/tenant
+        // AGNOSTIC unless explicitly determined otherwise and noted at the site. This package's
+        // tables (rank_trees, ranks) are deliberately agnostic — no pin, no exception note needed
+        // beyond this one — so a publish lands them in the host's `database/migrations/shared/`,
+        // the path beam-tenancy's registerSharedMigrationsPath() runs on BOTH passes. The auto-run
+        // posture (runsMigrations above, vs. package-tools' publish-only default) is likewise
+        // DELIBERATE, preserved per the bookmarks-to-rank build SPEC.
         $package
             ->name('laravel-beam-rank')
             ->hasConfigFile('beam/rank')

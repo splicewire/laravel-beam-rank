@@ -13,6 +13,11 @@ use Splicewire\Beam\Beam;
  * under a per-user root). NEW versus the shelf shape: `user_type`/`user_id` — single owner via
  * direct morph columns (permission-cascade HasMorphUser), replacing the multi-owner `userables`
  * pivot the Shelf rode.
+ *
+ * SHARED PLACEMENT (the doctrine's explicit note): this migration is deliberately
+ * central/tenant-AGNOSTIC — the fleet default — so it lives in `shared/` and runs on BOTH passes
+ * (central `migrate` + the per-tenant migrator, via beam-tenancy's registered shared path). No pin
+ * is required or intended; the current-schema guard above is what makes the double pass idempotent.
  */
 return new class extends Migration
 {

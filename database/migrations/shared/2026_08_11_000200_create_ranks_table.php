@@ -16,6 +16,11 @@ use Splicewire\Beam\Beam;
  * actor can independently hold `like` AND `favorite` on the same target as two distinct rows.
  * `value` is the scalar payload carried only by rows of the scalar `rank` type (a "Rank row of
  * type rank" — toggle types never touch it). Net-new, create-only, current-schema guarded.
+ *
+ * SHARED PLACEMENT (the doctrine's explicit note): this migration is deliberately
+ * central/tenant-AGNOSTIC — the fleet default — so it lives in `shared/` and runs on BOTH passes
+ * (central `migrate` + the per-tenant migrator, via beam-tenancy's registered shared path). No pin
+ * is required or intended; the current-schema guard above is what makes the double pass idempotent.
  */
 return new class extends Migration
 {
