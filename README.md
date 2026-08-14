@@ -87,7 +87,7 @@ scalar path), `log_activity.{toggle,rate}`.
 ## Ownership posture
 
 The `user_type`/`user_id` columns write through one blessed seam —
-`Rushing\PermissionCascade\Support\Facades\Ownership::assign()` (the trait's `assignUser()` is
+`Rushing\PermissionCascade\Facades\Ownership::assign()` (the trait's `assignUser()` is
 sugar) — and are defined as rebuildable projections of a future custody chain
 (`rushing/laravel-lineage`, chartered separately). No `transferOwnership()` exists on purpose: the
 first real transfer feature mints it, with event-complete custody capture.

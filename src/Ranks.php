@@ -4,7 +4,7 @@ namespace Splicewire\Beam\Rank;
 
 use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Database\Eloquent\Model;
-use Rushing\PermissionCascade\Support\Facades\Ownership;
+use Rushing\PermissionCascade\Facades\Ownership;
 use Splicewire\Beam\Rank\Models\Rank;
 use Splicewire\Beam\Rank\Models\RankTree;
 
