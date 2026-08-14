@@ -80,9 +80,12 @@ Tables are prefixed by beam core (`Beam::table()` → `beam_rank_trees` / `beam_
 
 ## Config
 
-`config/beam/rank.php`: `models.{tree,rank}`, `register_migrations`, `register_resources`,
+`config/beam/rank.php`: `models.{tree,rank}`, `register_resources`,
 `resources.{group_prefix,middleware}`, `root_name`, `scales` (per-type min/max defaults for the
 scalar path), `log_activity.{toggle,rate}`.
+
+Migrations ship publish-only (`vendor:publish --tag=beam-rank-migrations`) — no toggle, matching
+`laravel-beam-accounts`' pattern.
 
 ## Ownership posture
 

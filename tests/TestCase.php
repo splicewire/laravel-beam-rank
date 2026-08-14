@@ -57,7 +57,6 @@ abstract class TestCase extends Orchestra
         // Single-tenant test: teams off; the package migrations are Postgres-guarded (schema is hand-built below).
         $c->set('permission-cascade.manage_spatie_teams', false);
         $c->set('permission.teams', false);
-        $c->set('beam.rank.register_migrations', false);
         // The particle surface needs laravel-beam's route macros (absent here) — Resources::register no-ops.
         $c->set('beam.rank.register_resources', false);
     }

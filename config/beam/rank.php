@@ -12,9 +12,6 @@ return [
         'rank' => Rank::class,
     ],
 
-    // Load the package migrations. A host that publishes/owns its own copies sets this false.
-    'register_migrations' => env('BEAM_RANK_REGISTER_MIGRATIONS', true),
-
     // The name of the auto-provisioned per-user root tree (user-rooted subtree). The ungrouped
     // list is bare ranks (tree_id null); the root tree is the parent for named trees.
     'root_name' => 'Saved',
