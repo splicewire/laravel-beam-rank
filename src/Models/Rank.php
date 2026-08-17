@@ -9,7 +9,7 @@ use Illuminate\Database\Eloquent\Relations\MorphTo;
 use Rushing\PermissionCascade\Attributes\UseCascadePolicy;
 use Rushing\PermissionCascade\Concerns\HasMorphUser;
 use Rushing\PermissionCascade\Policies\BaseModelPolicy;
-use Splicewire\Beam\Beam;
+use Splicewire\Beam\Facades\Beam;
 use Splicewire\Beam\Rank\RankType;
 use Splicewire\Beam\Rank\Resources;
 

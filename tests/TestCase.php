@@ -11,7 +11,7 @@ use Rushing\PermissionCascade\PermissionCascadeServiceProvider;
 use Spatie\Activitylog\ActivitylogServiceProvider;
 use Spatie\Permission\Models\Role;
 use Spatie\Permission\PermissionServiceProvider;
-use Splicewire\Beam\Beam;
+use Splicewire\Beam\Facades\Beam;
 use Splicewire\Beam\Rank\BeamRankServiceProvider;
 use Splicewire\Beam\Rank\Models\Rank;
 use Splicewire\Beam\Rank\Models\RankTree;
