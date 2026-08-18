@@ -5,6 +5,7 @@ use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Splicewire\Beam\Facades\Beam;
+use Splicewire\Beam\Schema\ConvergentTable;
 
 /**
  * `beam_ranks` — THE atom (was `beam_bookmarks`): one actor attached one typed gesture to one
@@ -27,26 +28,28 @@ return new class extends Migration
     public function up(): void
     {
         $schema = DB::selectOne('select current_schema() as schema')->schema;
-        if ($this->exists($schema, $this->target())) {
-            return;
-        }
 
-        Schema::create($this->target(), function (Blueprint $table): void {
-            $table->uuid('id')->primary();
-            $table->string('user_type');
-            $table->string('user_id');
-            $table->string('type')->index();
-            $table->string('rankable_type');
-            $table->string('rankable_id');
-            $table->uuid('tree_id')->nullable()->index();
-            $table->unsignedInteger('position')->nullable();
-            $table->double('value')->nullable();
-            $table->timestamps();
+        ConvergentTable::named($this->target())
+            // The current-schema predicate survives the conversion: Schema::hasTable() follows the
+            // tenant search_path, so it reports a CENTRAL table as present in a tenant schema.
+            ->existsUsing(fn (string $table): bool => $this->exists($schema, $table))
+            ->define(function (Blueprint $table): void {
+                $table->uuid('id')->primary();
+                $table->string('user_type');
+                $table->string('user_id');
+                $table->string('type')->index();
+                $table->string('rankable_type');
+                $table->string('rankable_id');
+                $table->uuid('tree_id')->nullable()->index();
+                $table->unsignedInteger('position')->nullable();
+                $table->double('value')->nullable();
+                $table->timestamps();
 
-            $table->index(['user_type', 'user_id']);
-            $table->index(['rankable_type', 'rankable_id']);
-            $table->unique(['user_type', 'user_id', 'type', 'rankable_type', 'rankable_id', 'tree_id'], 'ranks_unique');
-        });
+                $table->index(['user_type', 'user_id']);
+                $table->index(['rankable_type', 'rankable_id']);
+                $table->unique(['user_type', 'user_id', 'type', 'rankable_type', 'rankable_id', 'tree_id'], 'ranks_unique');
+            })
+            ->assert();
 
         // `ranks_unique` never fires for UNGROUPED rows — `tree_id` is in the tuple and NULLs
         // compare distinct — which would leave bare same-type dedup resting solely on the
@@ -54,8 +57,11 @@ return new class extends Migration
         // it where the driver supports one (pgsql + sqlite — the fleet's two drivers); an
         // unsupported driver keeps the app-side dedup only.
         if (in_array(Schema::getConnection()->getDriverName(), ['pgsql', 'sqlite'], true)) {
+            // `if not exists` because the convergent guard makes this reachable on a table that
+            // already exists — raw DDL beside the guard is not covered by it (convention: "raw
+            // DB::statement"). Both drivers named above support the clause.
             DB::statement(
-                'create unique index ranks_unique_untreed on '.$this->target()
+                'create unique index if not exists ranks_unique_untreed on '.$this->target()
                 .' (user_type, user_id, type, rankable_type, rankable_id) where tree_id is null'
             );
         }
