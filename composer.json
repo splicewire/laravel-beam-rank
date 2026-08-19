@@ -13,7 +13,8 @@
         "rushing/laravel-permission-cascade": "*",
         "spatie/laravel-package-tools": "^1.16",
         "splicewire/laravel-beam": "*",
-        "staudenmeir/laravel-adjacency-list": "*"
+        "staudenmeir/laravel-adjacency-list": "*",
+        "rushing/laravel-schema-convergence": "*"
     },
     "require-dev": {
         "laravel/pint": "^1.0",
