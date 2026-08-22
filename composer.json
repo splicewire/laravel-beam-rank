@@ -1,9 +1,21 @@
 {
     "name": "splicewire/laravel-beam-rank",
     "description": "The Rank substrate for beam sites: any actor attaches a typed gesture (like, dislike, favorite, friend, follow, ignore, silence, block, plus a scalar rank with translatable bounds) to any target, optionally organized into a RankTree (a named, orderable, shareable, nestable grouping). Ownership rides permission-cascade's HasMorphUser; mutation history rides beam-core's ActivityLog substrate. Declarative particle resources (rank-trees + ranks). A host maps its own vocabulary onto the types (audiostud: 'Save' is a favorite; a 'playlist' is a rank tree).",
-    "keywords": ["laravel", "schemastud", "beam", "rank", "social", "taxonomy"],
+    "keywords": [
+        "laravel",
+        "schemastud",
+        "beam",
+        "rank",
+        "social",
+        "taxonomy"
+    ],
     "license": "MIT",
-    "authors": [{ "name": "Stephen Rushing", "email": "stephen@rushing.dev" }],
+    "authors": [
+        {
+            "name": "Stephen Rushing",
+            "email": "stephen@rushing.dev"
+        }
+    ],
     "require": {
         "php": "^8.2",
         "illuminate/contracts": "^11.0|^12.0|^13.0",
@@ -22,8 +34,16 @@
         "pestphp/pest": "^2.0|^3.0",
         "wikimedia/composer-merge-plugin": "^2.1"
     },
-    "autoload": { "psr-4": { "Splicewire\\Beam\\Rank\\": "src/" } },
-    "autoload-dev": { "psr-4": { "Splicewire\\Beam\\Rank\\Tests\\": "tests/" } },
+    "autoload": {
+        "psr-4": {
+            "Splicewire\\Beam\\Rank\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Splicewire\\Beam\\Rank\\Tests\\": "tests/"
+        }
+    },
     "extra": {
         "package-topology": {
             "because": "beam-rank is a beam-family package: it depends DOWN on beam-core + permission-cascade + adjacency and must never require the tower/satellite tiers it is consumed by, nor any AI vendor",
@@ -43,13 +63,26 @@
                 "openai*"
             ]
         },
-        "branch-alias": { "dev-main": "1.0.x-dev" },
-        "laravel": { "providers": ["Splicewire\\Beam\\Rank\\BeamRankServiceProvider"] },
-        "merge-plugin": { "include": ["composer.local.json"] }
+        "branch-alias": {
+            "dev-main": "1.0.x-dev"
+        },
+        "laravel": {
+            "providers": [
+                "Splicewire\\Beam\\Rank\\BeamRankServiceProvider"
+            ]
+        },
+        "merge-plugin": {
+            "include": [
+                "composer.local.json"
+            ]
+        }
     },
     "minimum-stability": "dev",
     "prefer-stable": true,
-    "scripts": { "test": "vendor/bin/pest", "pint": "@php -d memory_limit=512M vendor/bin/pint" },
+    "scripts": {
+        "test": "vendor/bin/pest",
+        "pint": "@php -d memory_limit=512M vendor/bin/pint"
+    },
     "config": {
         "sort-packages": true,
         "allow-plugins": {
@@ -57,5 +90,23 @@
             "php-http/discovery": true,
             "wikimedia/composer-merge-plugin": true
         }
-    }
+    },
+    "repositories": [
+        {
+            "type": "git",
+            "url": "https://github.com/stephenr85/laravel-data-filters.git"
+        },
+        {
+            "type": "git",
+            "url": "https://github.com/stephenr85/laravel-permission-cascade.git"
+        },
+        {
+            "type": "git",
+            "url": "https://github.com/stephenr85/laravel-schema-convergence.git"
+        },
+        {
+            "type": "git",
+            "url": "https://github.com/splicewire/laravel-beam.git"
+        }
+    ]
 }
