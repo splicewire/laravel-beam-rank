@@ -24,7 +24,7 @@ use Splicewire\Beam\Rank\Models\Rank;
  * required owner constraint; the host binds the actual owner row-gate in its `ResourceQuery`
  * (audiostud's `App\Read\RanksQuery::baseQuery` — the one thing annotations can't express).
  */
-#[ParticleResource(key: 'ranks', model: Rank::class, filterable: true)]
+#[ParticleResource(key: 'ranks', backing: Rank::class, filterable: true)]
 class RankData extends Data
 {
     public function __construct(
