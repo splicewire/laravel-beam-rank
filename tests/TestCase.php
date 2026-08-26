@@ -9,6 +9,8 @@ use Illuminate\Support\Facades\Schema;
 use Orchestra\Testbench\TestCase as Orchestra;
 use Rushing\PermissionCascade\PermissionCascadeServiceProvider;
 use Spatie\Activitylog\ActivitylogServiceProvider;
+use Spatie\LaravelData\LaravelDataServiceProvider;
+use Spatie\LaravelData\Mappers\CamelCaseMapper;
 use Spatie\Permission\Models\Role;
 use Spatie\Permission\PermissionServiceProvider;
 use Splicewire\Beam\Facades\Beam;
@@ -42,6 +44,16 @@ abstract class TestCase extends Orchestra
             PermissionServiceProvider::class,
             PermissionCascadeServiceProvider::class,
             ActivitylogServiceProvider::class,
+
+            // Testbench does NOT auto-discover: a package harness boots exactly what this method
+            // names, while `src/` freely imports anything it can autoload. beam-rank reaches
+            // `spatie/laravel-data` and declares five Data classes with it, but without this line
+            // `config('data')` is NULL inside this suite and every `::validateAndCreate()` fatals
+            // with `Trying to access array offset on null` before it can be asserted on — a FATAL,
+            // not a failure. Measured here before the fix (`config('data') === null` true).
+            // api-surface-coherence tickets 84/85.
+            LaravelDataServiceProvider::class,
+
             BeamRankServiceProvider::class,
         ];
     }
@@ -59,6 +71,18 @@ abstract class TestCase extends Orchestra
         $c->set('permission.teams', false);
         // The particle surface needs laravel-beam's route macros (absent here) — Resources::register no-ops.
         $c->set('beam.rank.register_resources', false);
+
+        // Booting LaravelDataServiceProvider alone would be a FALSE GREEN. The package ships
+        // `name_mapping_strategy.input => null`, but the only host that runs this code
+        // (`~/Herd/splicewire-app/config/data.php`) sets it to CamelCaseMapper. A DTO hydrates fine
+        // under testbench defaults and silently stops mapping under the host's mapper, so the
+        // harness mirrors the host, not the package default.
+        $c->set('data.name_mapping_strategy.input', CamelCaseMapper::class);
+
+        // Structure caching points at `app_path('Data')` by default, which does not exist under
+        // testbench — and a cached reflection analysis across runs is exactly what a harness
+        // should not carry.
+        $c->set('data.structure_caching.enabled', false);
     }
 
     protected function createFixtureSchema(): void
