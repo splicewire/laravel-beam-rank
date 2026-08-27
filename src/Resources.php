@@ -5,6 +5,7 @@ namespace Splicewire\Beam\Rank;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
+use Splicewire\Beam\Facades\Particle;
 use Splicewire\Beam\Particle\Attributes\AttributedParticleDiscovery;
 use Splicewire\Beam\Particle\OperationKind;
 use Splicewire\Beam\Particle\ParticleOperation;
@@ -39,12 +40,12 @@ class Resources
         app(AttributedParticleDiscovery::class)->discover([RankTreeData::class, RankData::class]);
 
         Route::middleware($middleware)->prefix($groupPrefix)->group(function () {
-            Route::particleResource('rank-trees', 'rank-trees', ['only' => ['index', 'store', 'update', 'destroy']]);
-            Route::particleResource('ranks', 'ranks', ['only' => ['index', 'destroy']]);
+            Particle::mount('rank-trees', 'rank-trees')->only(['index', 'store', 'update', 'destroy']);
+            Particle::mount('ranks', 'ranks')->only(['index', 'destroy']);
 
-            // The reorder write op is a `#[ParticleOp]` Ops class; `Route::particleOps` (HTTP-02)
+            // The reorder write op is a `#[ParticleOp]` Ops class; `Particle::ops()`
             // discovers (registers) it AND mounts it.
-            Route::particleOps('rank-trees', 'rank-trees', [ReorderRanks::class]);
+            Particle::ops('rank-trees', 'rank-trees', [ReorderRanks::class]);
 
             // Dedup-aware toggle/untoggle/rate over the action (a bare create can't dedup on the
             // full unique tuple). Collection-level — the target arrives as body morph keys, so
@@ -64,12 +65,12 @@ class Resources
      *
      * `Resources::attachTo('songs', Composition::class)` mounts
      * `songs/{song}/op/rank-toggle|rank-untoggle|rank-rate` (the `{uri}/{id}/op/{name}` shape the
-     * particleOp macro owns). Ops default to the `view` ability — anyone who can SEE a record may
+     * `Particle::ops()` mounts). Ops default to the `view` ability — anyone who can SEE a record may
      * rank it — overridable per host via `$opts['ability']`.
      */
     public static function attachTo(string $resourceKey, string $model, array $opts = []): void
     {
-        if (! class_exists(ParticleOperationRegistry::class) || ! Route::hasMacro('particleOps')) {
+        if (! class_exists(ParticleOperationRegistry::class) || ! class_exists(Particle::class)) {
             return; // beam particle infra absent — nothing to mount.
         }
 
@@ -79,7 +80,7 @@ class Resources
         $ops = self::operationsFor($resourceKey, $model, $opts);
 
         Route::middleware($middleware)->prefix($groupPrefix)->group(function () use ($urlKey, $resourceKey, $ops) {
-            Route::particleOps($urlKey, $resourceKey, $ops);
+            Particle::ops($urlKey, $resourceKey, $ops);
         });
     }
 
