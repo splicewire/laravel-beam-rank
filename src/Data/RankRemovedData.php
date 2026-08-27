@@ -2,7 +2,7 @@
 
 namespace Splicewire\Beam\Rank\Data;
 
-use Spatie\LaravelData\Data;
+use Splicewire\Beam\Data\Data;
 
 /**
  * Output of the untoggle operation — how many Rank rows the gesture removal deleted. A Data class

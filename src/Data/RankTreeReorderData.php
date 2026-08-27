@@ -2,7 +2,7 @@
 
 namespace Splicewire\Beam\Rank\Data;
 
-use Spatie\LaravelData\Data;
+use Splicewire\Beam\Data\Data;
 
 /**
  * Output of the rank-trees reorder operation — the reordered tree's id and how many rank ids the

@@ -6,7 +6,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Gate;
 use Rushing\DataFilters\Attributes\Sortable;
-use Spatie\LaravelData\Data;
+use Splicewire\Beam\Data\Data;
 use Splicewire\Beam\Particle\Attributes\ParticleResource;
 use Splicewire\Beam\Rank\Models\RankTree;
 use Splicewire\Beam\Rank\Ranks;

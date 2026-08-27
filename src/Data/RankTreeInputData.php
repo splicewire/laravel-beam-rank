@@ -2,8 +2,8 @@
 
 namespace Splicewire\Beam\Rank\Data;
 
-use Spatie\LaravelData\Data;
 use Spatie\LaravelData\Optional;
+use Splicewire\Beam\Data\Data;
 use Splicewire\Beam\Http\Particle\ParticleController;
 use Splicewire\Beam\Rank\Ranks;
 use Splicewire\Beam\Write\Contracts\MapsToModelAttributes;

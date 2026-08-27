@@ -7,7 +7,7 @@ use Illuminate\Support\Facades\Auth;
 use Rushing\DataFilters\Attributes\Filterable;
 use Rushing\DataFilters\Attributes\Sortable;
 use Rushing\DataFilters\Operators\Exact;
-use Spatie\LaravelData\Data;
+use Splicewire\Beam\Data\Data;
 use Splicewire\Beam\Particle\Attributes\ParticleResource;
 use Splicewire\Beam\Rank\Models\Rank;
 
