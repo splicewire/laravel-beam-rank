@@ -6,6 +6,7 @@ use Spatie\LaravelData\Data;
 use Spatie\LaravelData\Optional;
 use Splicewire\Beam\Http\Particle\ParticleController;
 use Splicewire\Beam\Rank\Ranks;
+use Splicewire\Beam\Write\Contracts\MapsToModelAttributes;
 
 /**
  * The rank-tree write shape (create/rename/publish/unpublish): only these are mass-fillable.
@@ -36,7 +37,7 @@ use Splicewire\Beam\Rank\Ranks;
  *     advertise a capability the write pipeline immediately undoes. On create a null still means
  *     "root me", exactly as before.
  */
-class RankTreeInputData extends Data
+class RankTreeInputData extends Data implements MapsToModelAttributes
 {
     public function __construct(
         public string $name,
