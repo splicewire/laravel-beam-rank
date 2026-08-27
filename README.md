@@ -56,7 +56,12 @@ Declarative `#[ParticleResource]` Data classes (`Data\RankTreeData`, `Data\RankD
 `project()` conventions, discovered + mounted by `Rank\Resources::register()`:
 
 - **`rank-trees`** — index (own ∪ reach-visible via `scopeForUser`), store / update (rename +
-  publish via the `visibility` field + `parent_id`) / destroy, plus the `reorder` op. Authorization
+  publish/**unpublish** via the `visibility` field + `parent_id`) / destroy, plus the `reorder` op.
+  `visibility` is the one field on `RankTreeInputData` that distinguishes all three input states:
+  omit it and the tier is untouched, send it as `null` and the tree is unpublished (`Ranks::publish()`
+  only ever widens, so an explicit null is the only unpublish there is), send a tier and it is
+  written. Everything else on that DTO drops its nulls — see the class docblock for why `parentId`
+  deliberately does not join it. Authorization
   is the model's own `#[UseCascadePolicy(BaseModelPolicy::class, create: true)]` attribute —
   **no Policy class ships in this package**; `prepare()` defaults a new tree under the user's root
   (ownership stamps via the `HasMorphUser` creating hook).

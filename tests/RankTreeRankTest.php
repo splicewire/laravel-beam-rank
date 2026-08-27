@@ -10,6 +10,7 @@ use Splicewire\Beam\Particle\Attributes\ParticleResource;
 use Splicewire\Beam\Particle\OperationKind;
 use Splicewire\Beam\Rank\Data\RankData;
 use Splicewire\Beam\Rank\Data\RankTreeData;
+use Splicewire\Beam\Rank\Data\RankTreeInputData;
 use Splicewire\Beam\Rank\Data\RankTreeReorderData;
 use Splicewire\Beam\Rank\Models\Rank;
 use Splicewire\Beam\Rank\Models\RankTree;
@@ -387,6 +388,39 @@ it('publishes a tree by widening its visibility tier', function () {
     $this->ranks->publish($tree, 'platform');
 
     expect($tree->fresh()->visibility)->toBe('platform');
+});
+
+// The write DTO's half of the same story: `Ranks::publish()` only ever WIDENS, so unpublishing is
+// expressible only as an explicit `visibility: null` on the particle write. On the old `!== null`
+// gate that request was silently dropped — the caller believed they had made the tree private again
+// and it stayed platform-visible.
+it('leaves visibility alone when the field is absent from the write body', function () {
+    $attributes = RankTreeInputData::from(['name' => 'Renamed'])->toModelAttributes();
+
+    expect($attributes)->toBe(['name' => 'Renamed']);
+});
+
+it('unpublishes a tree when visibility is present and null', function () {
+    $attributes = RankTreeInputData::from(['name' => 'Public one', 'visibility' => null])->toModelAttributes();
+
+    expect($attributes)->toHaveKey('visibility')
+        ->and($attributes['visibility'])->toBeNull();
+});
+
+it('writes a supplied visibility tier', function () {
+    $attributes = RankTreeInputData::from(['name' => 'Public one', 'visibility' => 'platform'])->toModelAttributes();
+
+    expect($attributes['visibility'])->toBe('platform');
+});
+
+// The deliberate non-conversion. `parent_id` is nullable in the column, but `RankTreeData::prepare()`
+// runs on UPDATE as well as create (`ParticleController::updateParticle`) and re-roots any null
+// parent_id under the actor's root tree — so a "cleared" parent could never persist as null. Leaving
+// it on the drop-nulls gate keeps the DTO honest about what it can actually promise.
+it('drops a null parentId rather than pretending it can clear the column', function () {
+    $attributes = RankTreeInputData::from(['name' => 'Nested', 'parentId' => null])->toModelAttributes();
+
+    expect($attributes)->not->toHaveKey('parent_id');
 });
 
 it('inherits a published ancestor tier down the tree chain (cascade)', function () {
