@@ -3,7 +3,7 @@
 namespace Splicewire\Beam\Rank\Data;
 
 use Spatie\LaravelData\Optional;
-use Splicewire\Beam\Data\Data;
+use Splicewire\Beam\Data\BeamData;
 use Splicewire\Beam\Http\Particle\ParticleController;
 use Splicewire\Beam\Rank\Ranks;
 use Splicewire\Beam\Write\Contracts\MapsToModelAttributes;
@@ -37,7 +37,7 @@ use Splicewire\Beam\Write\Contracts\MapsToModelAttributes;
  *     advertise a capability the write pipeline immediately undoes. On create a null still means
  *     "root me", exactly as before.
  */
-class RankTreeInputData extends Data implements MapsToModelAttributes
+class RankTreeInputData extends BeamData implements MapsToModelAttributes
 {
     public function __construct(
         public string $name,

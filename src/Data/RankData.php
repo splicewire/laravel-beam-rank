@@ -7,7 +7,7 @@ use Illuminate\Support\Facades\Auth;
 use Rushing\DataFilters\Attributes\Filterable;
 use Rushing\DataFilters\Attributes\Sortable;
 use Rushing\DataFilters\Operators\Exact;
-use Splicewire\Beam\Data\Data;
+use Splicewire\Beam\Data\BeamData;
 use Splicewire\Beam\Particle\Attributes\ParticleResource;
 use Splicewire\Beam\Rank\Models\Rank;
 
@@ -25,7 +25,7 @@ use Splicewire\Beam\Rank\Models\Rank;
  * (audiostud's `App\Read\RanksQuery::baseQuery` — the one thing annotations can't express).
  */
 #[ParticleResource(key: 'ranks', backing: Rank::class, filterable: true)]
-class RankData extends Data
+class RankData extends BeamData
 {
     public function __construct(
         public string $id,

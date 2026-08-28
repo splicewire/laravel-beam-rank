@@ -6,7 +6,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Gate;
 use Rushing\DataFilters\Attributes\Sortable;
-use Splicewire\Beam\Data\Data;
+use Splicewire\Beam\Data\BeamData;
 use Splicewire\Beam\Particle\Attributes\ParticleResource;
 use Splicewire\Beam\Rank\Models\RankTree;
 use Splicewire\Beam\Rank\Ranks;
@@ -19,7 +19,7 @@ use Splicewire\Beam\Rank\Ranks;
  * exists anywhere.
  */
 #[ParticleResource(key: 'rank-trees', backing: RankTree::class, input: RankTreeInputData::class, filterable: false)]
-class RankTreeData extends Data
+class RankTreeData extends BeamData
 {
     public function __construct(
         public string $id,
