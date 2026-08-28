@@ -6,6 +6,7 @@ use Illuminate\Http\Request;
 use Splicewire\Beam\Particle\Attributes\ParticleOp;
 use Splicewire\Beam\Particle\OperationKind;
 use Splicewire\Beam\Rank\Data\RankTreeReorderData;
+use Splicewire\Beam\Rank\Data\RankTreeReorderInputData;
 use Splicewire\Beam\Rank\Models\RankTree;
 use Splicewire\Beam\Rank\Ranks;
 
@@ -23,6 +24,7 @@ use Splicewire\Beam\Rank\Ranks;
     kind: OperationKind::Write,
     model: RankTree::class,
     ability: 'update',
+    input: RankTreeReorderInputData::class,
     output: RankTreeReorderData::class,
 )]
 class ReorderRanks
