@@ -37,7 +37,13 @@ class Resources
         $groupPrefix = $opts['group_prefix'] ?? config('beam.rank.resources.group_prefix', 'resources');
         $middleware = $opts['middleware'] ?? config('beam.rank.resources.middleware', ['web', 'auth']);
 
-        app(AttributedParticleDiscovery::class)->discover([RankTreeData::class, RankData::class]);
+        // This package's own declaration roots, scanned rather than named — `src/Data` holds the two
+        // `#[ParticleResource]` DTOs, `src/Ops` the `ReorderRanks` `#[ParticleOp]`. The other four Ops
+        // classes carry no particle attribute and are ignored: the scan keeps only what declares.
+        app(AttributedParticleDiscovery::class)->discover(paths: [
+            __DIR__.'/Data',
+            __DIR__.'/Ops',
+        ]);
 
         Route::middleware($middleware)->prefix($groupPrefix)->group(function () {
             Particle::mount('rank-trees', 'rank-trees')->only(['index', 'store', 'update', 'destroy']);
