@@ -51,10 +51,20 @@ class BeamRankServiceProvider extends PackageServiceProvider
         CascadePolicyRegistrar::register(RankTree::class);
         CascadePolicyRegistrar::register(Rank::class);
 
-        // Mount the rank-trees/ranks particle surface. Guarded internally on the beam particle
-        // infra, so this is a no-op in a headless env or the standalone package test.
+        // DECLARE the rank-trees/ranks particle surface — registration only, never mounting. Guarded
+        // internally on the beam particle infra, so this is a no-op in a headless env or the standalone
+        // package test.
+        //
+        // ⚠️ **This called `Resources::register()` until registry-kernel 71, and a provider is the one
+        // place it must never be called from.** A provider boots OUTSIDE every route group, so the
+        // mount had no ambient middleware to inherit and the package supplied `['web','auth']` to fill
+        // the gap — a guess about the host, and the wrong one anywhere the surface belongs under an API
+        // or tenant stack. Laravel MERGES a nested group's middleware into its parent's, so a package
+        // that names a stack appends to the host's rather than choosing. Mounting is the host's act now:
+        // `audiostud` already calls `Rank\Resources::register([...])` from its own
+        // `RankServiceProvider` with an explicit prefix and middleware, which is the ratified shape.
         if (config('beam.rank.register_resources', true)) {
-            Resources::register();
+            Resources::declare();
         }
 
         // Self-register into beam-core's install manifest so `splicewire:beam:install` publishes

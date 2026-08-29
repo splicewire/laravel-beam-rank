@@ -37,25 +37,56 @@ use Splicewire\Beam\Rank\Ops\UntoggleRank;
  */
 class Resources
 {
-    public static function register(array $opts = []): void
+    /**
+     * DECLARE the two resources + the reorder op into the registries.
+     *
+     * ⚠️ **Separate from {@see register()} since registry-kernel 70, and they used to be one act** —
+     * which is why a dead route-macro probe did not merely leave the surface unmounted at audiostud, it
+     * left it unregistered. Declaration is a fact about this package; mounting is a fact about the host.
+     *
+     * Scanned rather than named — `src/Data` holds the two `#[ParticleResource]` DTOs, `src/Ops` the
+     * `ReorderRanks` `#[ParticleOp]`. The other four Ops classes carry no particle attribute and are
+     * ignored: the scan keeps only what declares. Idempotent by key.
+     */
+    public static function declare(): void
     {
         if (! class_exists(ParticleOperationRegistry::class)) {
-            return; // beam particle infra genuinely absent (a headless install) — nothing to mount into.
+            return; // beam particle infra genuinely absent (a headless install).
         }
 
-        $groupPrefix = $opts['group_prefix'] ?? config('beam.rank.resources.group_prefix', 'resources');
-        $middleware = $opts['middleware'] ?? config('beam.rank.resources.middleware', ['web', 'auth']);
-        // A fact about THIS package's models, not about the host: `Rank` and `RankTree` both
-        // `use HasUuids` (registry-kernel 70 Q1).
-        $idConstraint = $opts['idConstraint'] ?? 'uuid';
-
-        // This package's own declaration roots, scanned rather than named — `src/Data` holds the two
-        // `#[ParticleResource]` DTOs, `src/Ops` the `ReorderRanks` `#[ParticleOp]`. The other four Ops
-        // classes carry no particle attribute and are ignored: the scan keeps only what declares.
         app(AttributedParticleDiscovery::class)->discover(paths: [
             __DIR__.'/Data',
             __DIR__.'/Ops',
         ]);
+    }
+
+    /**
+     * MOUNT the global rank surface onto HTTP. **Call this from the route file whose group you want.**
+     *
+     * ⚠️ **Defaults to NO middleware and NO prefix (registry-kernel 71).** Laravel MERGES a nested
+     * group's middleware into its parent's rather than replacing it, so a package that names its own
+     * stack APPENDS to the host's instead of choosing. Declaring nothing makes central-vs-tenant fall
+     * out of where the host calls from — the one place that knows. An empty group is inert: measured to
+     * inherit the ambient stack exactly, with no stray path segment.
+     *
+     * Consequently this must NOT be called from this package's provider, which boots outside every
+     * route group; the provider calls {@see declare()}. `audiostud`'s
+     * `RankServiceProvider:67` already passes its own `group_prefix` and
+     * `['web','auth','not-suspended']` explicitly and is unaffected.
+     */
+    public static function register(array $opts = []): void
+    {
+        self::declare();
+
+        if (! class_exists(ParticleOperationRegistry::class)) {
+            return; // beam particle infra genuinely absent — declared nothing, so mount nothing.
+        }
+
+        $groupPrefix = $opts['group_prefix'] ?? config('beam.rank.resources.group_prefix', '');
+        $middleware = $opts['middleware'] ?? config('beam.rank.resources.middleware', []);
+        // A fact about THIS package's models, not about the host: `Rank` and `RankTree` both
+        // `use HasUuids` (registry-kernel 70 Q1).
+        $idConstraint = $opts['idConstraint'] ?? 'uuid';
 
         Route::middleware($middleware)->prefix($groupPrefix)->group(function () use ($idConstraint) {
             Particle::mount('rank-trees', 'rank-trees')
