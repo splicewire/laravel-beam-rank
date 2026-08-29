@@ -22,20 +22,32 @@ use Splicewire\Beam\Rank\Ops\UntoggleRank;
  * Register + mount the rank-trees/ranks particle surface. Reads are the declarative
  * {@see RankTreeData}/{@see RankData} resources (discovered here); writes are the `src/Ops/`
  * single-operation classes (ADR-0160/HTTP-10 — one class per operation, logic lives ONCE, in Ops).
- * Guarded on the beam particle infra so the package boots (and its standalone suite runs) without
- * laravel-beam's route macros present — a host with beam mounts the surface; the package
- * unit-tests scope/project + the action + the op handlers directly.
+ * Guarded on the beam particle infra — `class_exists()` and nothing more — so the package boots (and
+ * its standalone suite runs) where beam is genuinely absent; a host with beam mounts the surface, and
+ * the package unit-tests scope/project + the action + the op handlers directly.
+ *
+ * ⚠️ **This guard also tested `Route::hasMacro('particleResource')` until registry-kernel ticket 70,
+ * and `c663ede` — whose own subject line is "rank moves to the Particle front door, and its feature
+ * probe stops asking about a macro" — repaired that probe in {@see attachTo()} and missed this one
+ * three lines above it, in the same file.** Registration and mounting are one act here, so for six days
+ * audiostud (this package's only installer) called `register()` from `RankServiceProvider:67` and got
+ * silence: `ranks`, `rank-trees`, the reorder op and the three collection ops were all absent.
+ * `ParticleMounter` now holds the mount bodies behind an injected `Router`, so no router probe is
+ * meaningful.
  */
 class Resources
 {
     public static function register(array $opts = []): void
     {
-        if (! class_exists(ParticleOperationRegistry::class) || ! Route::hasMacro('particleResource')) {
-            return; // beam particle infra absent (e.g. standalone package test env) — nothing to mount.
+        if (! class_exists(ParticleOperationRegistry::class)) {
+            return; // beam particle infra genuinely absent (a headless install) — nothing to mount into.
         }
 
         $groupPrefix = $opts['group_prefix'] ?? config('beam.rank.resources.group_prefix', 'resources');
         $middleware = $opts['middleware'] ?? config('beam.rank.resources.middleware', ['web', 'auth']);
+        // A fact about THIS package's models, not about the host: `Rank` and `RankTree` both
+        // `use HasUuids` (registry-kernel 70 Q1).
+        $idConstraint = $opts['idConstraint'] ?? 'uuid';
 
         // This package's own declaration roots, scanned rather than named — `src/Data` holds the two
         // `#[ParticleResource]` DTOs, `src/Ops` the `ReorderRanks` `#[ParticleOp]`. The other four Ops
@@ -45,9 +57,13 @@ class Resources
             __DIR__.'/Ops',
         ]);
 
-        Route::middleware($middleware)->prefix($groupPrefix)->group(function () {
-            Particle::mount('rank-trees', 'rank-trees')->only(['index', 'store', 'update', 'destroy']);
-            Particle::mount('ranks', 'ranks')->only(['index', 'destroy']);
+        Route::middleware($middleware)->prefix($groupPrefix)->group(function () use ($idConstraint) {
+            Particle::mount('rank-trees', 'rank-trees')
+                ->idConstraint($idConstraint)
+                ->only(['index', 'store', 'update', 'destroy']);
+            Particle::mount('ranks', 'ranks')
+                ->idConstraint($idConstraint)
+                ->only(['index', 'destroy']);
 
             // The reorder write op is a `#[ParticleOp]` Ops class; `Particle::ops()`
             // discovers (registers) it AND mounts it.
