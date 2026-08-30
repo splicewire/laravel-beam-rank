@@ -3,9 +3,8 @@
 namespace Splicewire\Beam\Rank\Data;
 
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Gate;
 use Rushing\DataFilters\Attributes\Sortable;
+use Splicewire\Beam\Authorization\RowAuthorization;
 use Splicewire\Beam\Data\BeamData;
 use Splicewire\Beam\Particle\Attributes\ParticleResource;
 use Splicewire\Beam\Rank\Models\RankTree;
@@ -30,12 +29,19 @@ class RankTreeData extends BeamData
         public int $rankCount,
     ) {}
 
-    /** Own ∪ reach-visible trees (published trees surface to others via scopeForUser). */
+    /**
+     * Own ∪ reach-visible trees (published trees surface to others via scopeForUser).
+     *
+     * Rides {@see RowAuthorization} — the row plane of authorization as one named idiom
+     * (registry-kernel 72). This site previously called `Gate::getPolicyFor($model)->scopeForUser(…)`
+     * with no null check and so fataled at any host that binds no policy for the resolved model; the
+     * idiom fails CLOSED there instead.
+     */
     public static function scope(Builder $query): Builder
     {
         $model = config('beam.rank.models.tree', RankTree::class);
 
-        return Gate::getPolicyFor($model)->scopeForUser($query, Auth::user());
+        return RowAuthorization::apply($query, $model);
     }
 
     /** Default a new tree under the user's root before the create write. */
