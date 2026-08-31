@@ -10,6 +10,8 @@ use Splicewire\Beam\Particle\Attributes\AttributedParticleDiscovery;
 use Splicewire\Beam\Particle\OperationKind;
 use Splicewire\Beam\Particle\ParticleOperation;
 use Splicewire\Beam\Particle\ParticleOperationRegistry;
+use Splicewire\Beam\Particle\ParticleResource;
+use Splicewire\Beam\Particle\ParticleResourceRegistry;
 use Splicewire\Beam\Rank\Data\RankData;
 use Splicewire\Beam\Rank\Data\RankRemovedData;
 use Splicewire\Beam\Rank\Data\RankTreeData;
@@ -132,8 +134,74 @@ class Resources
         $middleware = $opts['middleware'] ?? config('beam.rank.resources.middleware', ['web', 'auth']);
         $ops = self::operationsFor($resourceKey, $model, $opts);
 
+        self::declareAnchorResource($resourceKey, $model);
+
         Route::middleware($middleware)->prefix($groupPrefix)->group(function () use ($urlKey, $resourceKey, $ops) {
             Particle::ops($urlKey, $resourceKey, $ops);
+        });
+    }
+
+    /**
+     * particle-operation-surface 19, RULING 1 — make sure `$resourceKey` names a DECLARED
+     * `ParticleResource`, so the three rank ops resolve `{id}` through the registry rather than
+     * through `RecordSubject`'s `$operation->model::query()->findOrFail($id)` fallback, which applies
+     * none of a resource's `scope`, `routeKey` or `includes`.
+     *
+     * That gap matters more here than the ops' own `ability:` suggests. The default ability is
+     * `'view'` — *anyone who can SEE a record may rank it* — and "can see" is exactly the question a
+     * resource's `scope` closure answers. Resolving the subject outside the resource meant the
+     * `view` policy was being asked about a row the resource's own read gate might never have
+     * returned.
+     *
+     * Registered from the same call that registers the ops, so a host gets it automatically: "this
+     * key resolves to that model" is a property of the RESOURCE, stated once, not restated per op.
+     *
+     * ## These three ops are LATENT, not live — the record should say so
+     *
+     * Beam's `RecordSubject.php:26-30` counts `Resources::attachTo()` among a live anchor population.
+     * Measured 2026-08-31 by sweeping the real package `src` roots, every `~/Herd` host's `app` and
+     * `routes`, and every starter: this factory has **zero** call sites. Every hit is a
+     * docblock. A factory no host calls declares nothing, so these three ops have never been
+     * registered anywhere and cannot have been anchors. (`rank-trees.reorder`, which does appear at
+     * audiostud, is an unrelated attributed op on a resource that is properly declared.)
+     *
+     * ## Deferred, guarded, and affordance-free — all three load-bearing
+     *
+     * Registering at an already-taken key does NOT throw; it REPLACES, silently, leaving the entry
+     * count unchanged. Since the rank surface is explicitly ADDITIVE to whatever resource a host
+     * already declares — `Rank::attachTo('songs', …)` presumes a real `songs` resource exists — an
+     * eager registration here would be free to overwrite that host declaration and its `scope` gate
+     * purely on provider boot order. `booted()` makes the `has()` check read the FINAL registry
+     * state, so the host wins regardless of who booted first.
+     *
+     * And the declaration opens no affordance: `$model` is host-supplied, so this package cannot know
+     * whether its backing can write, and `BackingResolver::assertAffordancesWithinCapability()`
+     * THROWS at registration for an affordance opened past a backing's capability. A rank op never
+     * writes the ranked model anyway — it writes a `Rank` row against it.
+     *
+     * @param  class-string<Model>  $model
+     */
+    protected static function declareAnchorResource(string $resourceKey, string $model): void
+    {
+        if (! class_exists(ParticleResourceRegistry::class)) {
+            return;
+        }
+
+        app()->booted(function () use ($resourceKey, $model) {
+            $resources = app(ParticleResourceRegistry::class);
+
+            if ($resources->has($resourceKey)) {
+                return;
+            }
+
+            $resources->register(new ParticleResource(
+                key: $resourceKey,
+                backing: $model,
+                readOnly: true,
+                editable: false,
+                deletable: false,
+                showable: false,
+            ));
         });
     }
 
