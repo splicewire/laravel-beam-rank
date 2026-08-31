@@ -158,7 +158,9 @@ class Resources
      *
      * ## These three ops are LATENT, not live — the record should say so
      *
-     * Beam's `RecordSubject.php:26-30` counts `Resources::attachTo()` among a live anchor population.
+     * Beam's `RecordSubject.php` USED TO count `Resources::attachTo()` among a live anchor population
+     * — retracted in `laravel-beam@83ce39d`, which also moved that section, so the old `:26-30` line
+     * reference no longer points at it. Do not re-cite it.
      * Measured 2026-08-31 by sweeping the real package `src` roots, every `~/Herd` host's `app` and
      * `routes`, and every starter: this factory has **zero** call sites. Every hit is a
      * docblock. A factory no host calls declares nothing, so these three ops have never been
