@@ -22,7 +22,6 @@ use Splicewire\Beam\Rank\Ranks;
     resource: 'rank-trees',
     name: 'reorder',
     kind: OperationKind::Write,
-    model: RankTree::class,
     ability: 'update',
     input: RankTreeReorderInputData::class,
     output: RankTreeReorderData::class,
