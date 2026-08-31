@@ -134,7 +134,7 @@ class Resources
         $middleware = $opts['middleware'] ?? config('beam.rank.resources.middleware', ['web', 'auth']);
         $ops = self::operationsFor($resourceKey, $model, $opts);
 
-        self::declareAnchorResource($resourceKey, $model);
+        self::declareResourceForKey($resourceKey, $model);
 
         Route::middleware($middleware)->prefix($groupPrefix)->group(function () use ($urlKey, $resourceKey, $ops) {
             Particle::ops($urlKey, $resourceKey, $ops);
@@ -181,12 +181,11 @@ class Resources
      *
      * @param  class-string<Model>  $model
      */
-    protected static function declareAnchorResource(string $resourceKey, string $model): void
+    protected static function declareResourceForKey(string $resourceKey, string $model): void
     {
-        if (! class_exists(ParticleResourceRegistry::class)) {
-            return;
-        }
-
+        // No `class_exists()` guard of its own: {@see attachTo()} has already returned early if the
+        // particle infra is absent, and `splicewire/laravel-beam` is a hard `require` besides. A second
+        // guard here would be dead code wearing a defensive costume.
         app()->booted(function () use ($resourceKey, $model) {
             $resources = app(ParticleResourceRegistry::class);
 
