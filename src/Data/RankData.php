@@ -19,10 +19,12 @@ use Splicewire\Beam\Rank\Models\Rank;
  * `#[Sortable(default: true)]` on `position` supplies the default order. data-filters
  * auto-generates the query from these annotations.
  *
- * OWNER-SCOPING NOTE: a `filterable:true` resource's read gate is the host's data-filters query —
- * ParticleController skips `scope()` for the filterable path. The `scope()` below documents the
- * required owner constraint; the host binds the actual owner row-gate in its `ResourceQuery`
- * (audiostud's `App\Read\RanksQuery::baseQuery` — the one thing annotations can't express).
+ * OWNER-SCOPING NOTE: a `filterable:true` resource's read gate is its data-filters query —
+ * ParticleController skips `scope()` for the filterable path. The `scope()` below declares the owner
+ * constraint, and {@see \Splicewire\Beam\Rank\Query\RankResourceQuery} is the package-tier query that
+ * READS it (beam-docs-satellite 65 — an earlier version of this note said "the host binds the actual
+ * owner row-gate in its `ResourceQuery`", which nominated a gate no host but audiostud ever wrote). A
+ * host may still bind a narrower query over it (audiostud's `App\Read\RanksQuery` adds `type = favorite`).
  */
 #[ParticleResource(key: 'ranks', backing: Rank::class, filterable: true)]
 class RankData extends BeamData
