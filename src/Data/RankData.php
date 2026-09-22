@@ -12,21 +12,9 @@ use Splicewire\Beam\Particle\Attributes\ParticleResource;
 use Splicewire\Beam\Rank\Models\Rank;
 
 /**
- * The `ranks` particle resource — the current user's ranks across every type and target. The
- * whole read surface is declared here, NOT in a hand-rolled query: the resource is `filterable`,
- * `treeId` / `rankableType` / `type` are `#[Filterable]` facets (a host narrows with
- * `?filter[type]=favorite` — absent = every rank including the bare ungrouped list), and
- * `#[Sortable(default: true)]` on `position` supplies the default order. data-filters
- * auto-generates the query from these annotations.
- *
- * OWNER-SCOPING NOTE: a `filterable:true` resource's read gate is its data-filters query —
- * ParticleController skips `scope()` for the filterable path. The `scope()` below declares the owner
- * constraint, and {@see \Splicewire\Beam\Rank\Query\RankResourceQuery} is the package-tier query that
- * READS it (beam-docs-satellite 65 — an earlier version of this note said "the host binds the actual
- * owner row-gate in its `ResourceQuery`", which nominated a gate no host but audiostud ever wrote). A
- * host may still bind a narrower query over it (audiostud's `App\Read\RanksQuery` adds `type = favorite`).
+ * Filter controls derive from the declared vocabulary. Resource scopes apply to all reads.
  */
-#[ParticleResource(key: 'ranks', backing: Rank::class, filterable: true)]
+#[ParticleResource(key: 'ranks', backing: Rank::class)]
 class RankData extends BeamData
 {
     public function __construct(

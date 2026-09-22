@@ -459,8 +459,7 @@ it('projects a tree with its rank count', function () {
 it('declares the ranks resource filterable with treeId + rankableType + type facets (data-filters)', function () {
     $resource = (new ReflectionClass(RankData::class))
         ->getAttributes(ParticleResource::class)[0]->newInstance();
-    expect($resource->filterable)->toBeTrue()
-        ->and($resource->key)->toBe('ranks');
+    expect($resource->key)->toBe('ranks');
 
     $facets = [];
     foreach ((new ReflectionClass(RankData::class))->getConstructor()->getParameters() as $p) {

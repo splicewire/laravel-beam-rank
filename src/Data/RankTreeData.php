@@ -17,7 +17,7 @@ use Splicewire\Beam\Rank\Ranks;
  * model's own `#[UseCascadePolicy]` attribute is the deny-default write gate — no Policy class
  * exists anywhere.
  */
-#[ParticleResource(key: 'rank-trees', backing: RankTree::class, input: RankTreeInputData::class, filterable: false)]
+#[ParticleResource(key: 'rank-trees', backing: RankTree::class, input: RankTreeInputData::class)]
 class RankTreeData extends BeamData
 {
     public function __construct(

@@ -2,17 +2,13 @@
 
 namespace Splicewire\Beam\Rank;
 
-use Rushing\DataFilters\Registry\ResourceDefinition as FilterResourceDefinition;
-use Rushing\DataFilters\Registry\ResourceRegistry as FilterResourceRegistry;
 use Rushing\PermissionCascade\Support\CascadePolicyRegistrar;
 use Spatie\LaravelPackageTools\Package;
 use Spatie\LaravelPackageTools\PackageServiceProvider;
 use Splicewire\Beam\Doctor\BeamDoctorManifest;
 use Splicewire\Beam\Install\BeamInstallManifest;
 use Splicewire\Beam\Rank\Doctor\BeamRankMigrationsAudit;
-use Splicewire\Beam\Rank\Data\RankData;
 use Splicewire\Beam\Rank\Models\Rank;
-use Splicewire\Beam\Rank\Query\RankResourceQuery;
 use Splicewire\Beam\Rank\Models\RankTree;
 
 /**
@@ -69,25 +65,6 @@ class BeamRankServiceProvider extends PackageServiceProvider
         // `RankServiceProvider` with an explicit prefix and middleware, which is the ratified shape.
         if (config('beam.rank.register_resources', true)) {
             Resources::declare();
-        }
-
-        // beam-docs-satellite 65: the `ranks` data-filters registration the `filterable` declaration
-        // promises, carrying the owner scope `RankData::scope()` declares. Guarded on `has()` because
-        // `registerDefinition()` overwrites plainly and a host that seeded its own `ranks` key first
-        // (audiostud's `RanksQuery`) must keep it; a host registering AFTER this overwrites it, which is
-        // the same outcome. Skipped where data-filters is genuinely absent — `ranks` is then declared,
-        // just not filterable here.
-        if ($this->app->bound(FilterResourceRegistry::class)) {
-            $registry = $this->app->make(FilterResourceRegistry::class);
-
-            if (! $registry->has('ranks')) {
-                $registry->registerDefinition(new FilterResourceDefinition(
-                    key: 'ranks',
-                    data: RankData::class,
-                    query: RankResourceQuery::class,
-                    model: Rank::class,
-                ));
-            }
         }
 
         // Self-register into beam-core's install manifest so `splicewire:beam:install` publishes

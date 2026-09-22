@@ -1,45 +1,53 @@
 <?php
 
 use Illuminate\Http\Request;
-use Rushing\DataFilters\ServiceProvider as DataFiltersServiceProvider;
+use Rushing\DataFilters\Contracts\ResourceModelResolver;
+use Rushing\DataFilters\Query\ResourceQuery;
+use Rushing\DataFilters\Registry\ResourceDefinition;
 use Rushing\DataFilters\Registry\ResourceRegistry;
+use Rushing\DataFilters\ServiceProvider as DataFiltersServiceProvider;
+use Splicewire\Beam\Filters\ResourceFilterDefinition;
+use Splicewire\Beam\Particle\Attributes\AttributedParticleDiscovery;
+use Splicewire\Beam\Particle\ParticleListQuery;
+use Splicewire\Beam\Particle\ParticleResourceModelResolver;
+use Splicewire\Beam\Particle\ParticleResourceRegistry;
 use Splicewire\Beam\Rank\BeamRankServiceProvider;
+use Splicewire\Beam\Rank\Data\RankData;
 use Splicewire\Beam\Rank\Models\Rank;
-use Splicewire\Beam\Rank\Query\RankResourceQuery;
 
-/**
- * beam-docs-satellite 65: the `ranks` filterable resource ships its own owner-scoped base query, so a host
- * that mounts it without writing a query of its own gets a SCOPED list rather than a 500 — and a host that
- * registered its own query first keeps it.
- */
+// Resource metadata supplies filters; the shared list composer always applies the owner scope.
 beforeEach(function (): void {
     // The harness deliberately does not boot data-filters (it is beam's concern); this file does, because
     // the registration under test is a no-op without it — which would read as a clean pass.
     $this->app->register(DataFiltersServiceProvider::class);
+    $this->app->bind(ResourceModelResolver::class, ParticleResourceModelResolver::class);
+    $registry = new ParticleResourceRegistry;
+    $this->app->instance(ParticleResourceRegistry::class, $registry);
+    $registry->register(AttributedParticleDiscovery::resourceFromAttribute(RankData::class));
     $this->app->register(BeamRankServiceProvider::class, force: true);
 });
 
-it('registers the ranks data-filters resource with the package query', function (): void {
-    $registry = app(ResourceRegistry::class);
+it('derives the ranks vocabulary from its resource declaration', function (): void {
+    $resolver = app(ResourceFilterDefinition::class);
+    $definition = $resolver->definition('ranks');
 
-    expect($registry->has('ranks'))->toBeTrue()
-        ->and($registry->get('ranks')->query)->toBe(RankResourceQuery::class)
-        ->and($registry->get('ranks')->model)->toBe(Rank::class);
+    expect($definition->requireModel())->toBe(Rank::class)
+        ->and($resolver->query($definition)->filterNames())->toContain('treeId', 'rankableType', 'type');
 });
 
-it('scopes the base query to the actor, before any user filter runs', function (): void {
-    $query = app(\Rushing\DataFilters\DataFilterManager::class)->query('ranks');
-    $builder = (new ReflectionMethod($query, 'baseQuery'))->invoke($query, Request::create('/'));
-    $wheres = array_column($builder->toBase()->wheres, 'column');
+it('scopes the list to the actor before user filters', function (): void {
+    $resource = app(ParticleResourceRegistry::class)->get('ranks');
+    $builder = app(ParticleListQuery::class)->forList($resource, ['type' => 'favorite'], Request::create('/', 'GET', ['filter' => ['type' => 'favorite']]));
 
-    expect($wheres)->toContain('user_type')->toContain('user_id');
+    expect($builder->toSql())->toContain('user_type')->toContain('user_id')
+        ->and($builder->getBindings())->toContain('favorite');
 });
 
 it('does not overwrite a ranks query a host registered first', function (): void {
     $registry = app(ResourceRegistry::class);
-    $registry->registerDefinition(new \Rushing\DataFilters\Registry\ResourceDefinition(
+    $registry->registerDefinition(new ResourceDefinition(
         key: 'ranks',
-        data: \Splicewire\Beam\Rank\Data\RankData::class,
+        data: RankData::class,
         query: HostRanksQuery::class,
         model: Rank::class,
     ));
@@ -49,4 +57,4 @@ it('does not overwrite a ranks query a host registered first', function (): void
     expect($registry->get('ranks')->query)->toBe(HostRanksQuery::class);
 });
 
-class HostRanksQuery extends RankResourceQuery {}
+class HostRanksQuery extends ResourceQuery {}
