@@ -5,17 +5,16 @@ namespace Splicewire\Beam\Rank\Tests;
 use Illuminate\Contracts\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Gate;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Rushing\DataFilters\Facades\DataFilter;
 use Rushing\DataFilters\Query\ResourceQuery;
 use Rushing\DataFilters\ServiceProvider as DataFiltersServiceProvider;
-use Rushing\PermissionCascade\Support\PermissionNamer;
 use Rushing\Popcorn\Laravel\PopcornServiceProvider;
 use Schemastud\DataSchemas\LaravelDataSchemasServiceProvider;
 use Schemastud\Frame\Contracts\ResourceRegistry;
 use Schemastud\Frame\FrameServiceProvider;
 use Schemastud\Frame\Registry\CompositeResourceRegistry;
-use Spatie\Permission\Models\Permission;
 use Splicewire\Beam\BeamServiceProvider;
 use Splicewire\Beam\Frame\ParticleResourceRegistryAdapter;
 use Splicewire\Beam\Particle\ParticleResourceRegistry;
@@ -250,7 +249,7 @@ class RankFrameResourceTest extends TestCase
         $this->assertNotNull($boTree->fresh());
     }
 
-    public function test_rank_metadata_requires_the_existing_permission_then_exposes_only_its_vocabulary(): void
+    public function test_rank_metadata_follows_the_owner_scope_and_exposes_only_its_vocabulary(): void
     {
         $ada = $this->user('Ada');
         $rank = app(Ranks::class)->toggle($ada, Song::create(['title' => 'One']), RankType::FAVORITE);
@@ -261,13 +260,8 @@ class RankFrameResourceTest extends TestCase
             return [['value' => 'other', 'label' => 'Other actor']];
         });
         $this->actingAs($ada)->getJson('/frame/resources/ranks')->assertOk()->assertJsonPath('data.0.id', $rank->getKey());
-        // Current shared limitation: the owner-scoped list is readable, but metadata additionally
-        // asks the model's viewAny policy. Ticket 17 tracks reconciling that capability boundary.
-        $this->getJson('/frame/resources/ranks/filters/schema')->assertForbidden();
-        $this->getJson('/frame/resources/ranks/filters/options/other-owners')->assertForbidden();
-        $this->assertSame(0, $calls);
-        $permission = app(PermissionNamer::class)->assemble(Rank::class, 'own', 'view');
-        $ada->givePermissionTo(Permission::findOrCreate($permission, 'web'));
+        // The declared owner scope permits its filter vocabulary without class-wide read access.
+        $this->assertTrue(Gate::denies('viewAny', Rank::class));
         $properties = $this->getJson('/frame/resources/ranks/filters/schema')->assertOk()->json('data.properties');
         $filters = array_filter($properties, fn (array $property): bool => isset($property['x-filter']));
         $this->assertEqualsCanonicalizing(['rankableType', 'treeId', 'type'], array_keys($filters));
