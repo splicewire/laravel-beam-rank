@@ -13,8 +13,10 @@ use Splicewire\Beam\Rank\Models\Rank;
 
 /**
  * Filter controls derive from the declared vocabulary. Resource scopes apply to all reads.
+ * Rows can be listed and deleted; creating or changing a gesture belongs to the gesture actions,
+ * which preserve tuple deduplication and scalar bounds. No record-detail surface is declared.
  */
-#[ParticleResource(key: 'ranks', backing: Rank::class)]
+#[ParticleResource(key: 'ranks', backing: Rank::class, readOnly: true, deletable: true, showable: false)]
 class RankData extends BeamData
 {
     public function __construct(
@@ -35,9 +37,13 @@ class RankData extends BeamData
     {
         $actor = Auth::user();
 
+        if ($actor === null || $actor->getAuthIdentifier() === null) {
+            return $query->whereRaw('1 = 0');
+        }
+
         return $query
-            ->where('user_type', $actor?->getMorphClass() ?? 'user')
-            ->where('user_id', (string) Auth::id());
+            ->where('user_type', $actor->getMorphClass())
+            ->where('user_id', (string) $actor->getAuthIdentifier());
     }
 
     public static function project(Rank $rank): self

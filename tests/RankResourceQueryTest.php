@@ -14,6 +14,7 @@ use Splicewire\Beam\Particle\ParticleResourceRegistry;
 use Splicewire\Beam\Rank\BeamRankServiceProvider;
 use Splicewire\Beam\Rank\Data\RankData;
 use Splicewire\Beam\Rank\Models\Rank;
+use Splicewire\Beam\Rank\Tests\Fixtures\User;
 
 // Resource metadata supplies filters; the shared list composer always applies the owner scope.
 beforeEach(function (): void {
@@ -36,6 +37,7 @@ it('derives the ranks vocabulary from its resource declaration', function (): vo
 });
 
 it('scopes the list to the actor before user filters', function (): void {
+    $this->actingAs(User::create(['name' => 'Owner', 'email' => 'owner@example.test']));
     $resource = app(ParticleResourceRegistry::class)->get('ranks');
     $builder = app(ParticleListQuery::class)->forList($resource, ['type' => 'favorite'], Request::create('/', 'GET', ['filter' => ['type' => 'favorite']]));
 

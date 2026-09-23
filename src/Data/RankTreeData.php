@@ -15,9 +15,9 @@ use Splicewire\Beam\Rank\Ranks;
  * reach-visible (published) via the cascade; `prepare` defaults a new tree under the user's root
  * (ownership stamps via the HasMorphUser creating hook); the cascade policy declared by the
  * model's own `#[UseCascadePolicy]` attribute is the deny-default write gate — no Policy class
- * exists anywhere.
+ * exists anywhere. The resource supports list/create/update/delete without a record-detail surface.
  */
-#[ParticleResource(key: 'rank-trees', backing: RankTree::class, input: RankTreeInputData::class)]
+#[ParticleResource(key: 'rank-trees', backing: RankTree::class, input: RankTreeInputData::class, showable: false)]
 class RankTreeData extends BeamData
 {
     public function __construct(
