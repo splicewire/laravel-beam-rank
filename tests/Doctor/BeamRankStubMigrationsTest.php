@@ -3,20 +3,20 @@
 namespace Splicewire\Beam\Rank\Tests\Doctor;
 
 use Splicewire\Beam\Doctor\Testing\AssertsStubMigrations;
-use Splicewire\Beam\Rank\Doctor\BeamRankMigrationsAudit;
+use Splicewire\Beam\Rank\BeamRankServiceProvider;
 use Splicewire\Beam\Rank\Tests\TestCase;
 
 /**
  * beam-rank's own operator check: its migrations must stay publish-only `.stub` files. Mirrors every
  * sibling's version of this test — a thin wrapper over the shared {@see AssertsStubMigrations} engine
- * that declares only "which audit is mine."
+ * that declares only "which package is mine."
  *
  * Filled because rank was the **one** beam-* package shipping a `*MigrationsAudit` with nothing
  * exercising it: the audit class existed, was registered, and had never been run in a test. An audit
  * nobody runs is a convention nobody enforces — and this one guards the publish-only stub convention
  * that the whole estate's install path depends on.
  */
-class BeamRankMigrationsAuditTest extends TestCase
+class BeamRankStubMigrationsTest extends TestCase
 {
     use AssertsStubMigrations;
 
@@ -25,8 +25,13 @@ class BeamRankMigrationsAuditTest extends TestCase
         $this->assertMigrationsArePublishOnlyStubs();
     }
 
-    protected function stubMigrationsAuditClass(): string
+    protected function stubMigrationsPackage(): ?string
     {
-        return BeamRankMigrationsAudit::class;
+        return 'splicewire/laravel-beam-rank';
+    }
+
+    protected function stubMigrationsProvider(): ?string
+    {
+        return BeamRankServiceProvider::class;
     }
 }

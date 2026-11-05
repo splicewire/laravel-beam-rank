@@ -7,7 +7,6 @@ use Spatie\LaravelPackageTools\Package;
 use Spatie\LaravelPackageTools\PackageServiceProvider;
 use Splicewire\Beam\Doctor\BeamDoctorManifest;
 use Splicewire\Beam\Install\BeamInstallManifest;
-use Splicewire\Beam\Rank\Doctor\BeamRankMigrationsAudit;
 use Splicewire\Beam\Rank\Models\Rank;
 use Splicewire\Beam\Rank\Models\RankTree;
 
@@ -79,9 +78,9 @@ class BeamRankServiceProvider extends PackageServiceProvider
         }
 
         if ($this->app->bound(BeamDoctorManifest::class)) {
-            $this->app->make(BeamDoctorManifest::class)->register(
+            $this->app->make(BeamDoctorManifest::class)->stubMigrations(
                 'splicewire/laravel-beam-rank',
-                BeamRankMigrationsAudit::class,
+                self::class,
             );
         }
     }
