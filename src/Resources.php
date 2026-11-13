@@ -90,26 +90,33 @@ class Resources
         // `use HasUuids` (registry-kernel 70 Q1).
         $idConstraint = $opts['idConstraint'] ?? 'uuid';
 
-        Route::middleware($middleware)->prefix($groupPrefix)->group(function () use ($idConstraint) {
-            Particle::mount('rank-trees', 'rank-trees')
-                ->idConstraint($idConstraint)
-                ->only(['index', 'store', 'update', 'destroy']);
-            Particle::mount('ranks', 'ranks')
-                ->idConstraint($idConstraint)
-                ->only(['index', 'destroy']);
+        Route::middleware($middleware)->prefix($groupPrefix)->group(fn () => self::routes($idConstraint));
+    }
 
-            // The reorder write op is a `#[ParticleOp]` Ops class; `Particle::ops()`
-            // discovers (registers) it AND mounts it.
-            Particle::ops('rank-trees', 'rank-trees', [ReorderRanks::class]);
+    /**
+     * The global rank surface's routes, relative to whatever group the caller opens: the legacy host-prefixed group
+     * above, or the package root `RankRoutes::mount()` opens (owner-review-20261112 13d). One body, two mounts.
+     */
+    public static function routes(string $idConstraint = 'uuid'): void
+    {
+        Particle::mount('rank-trees', 'rank-trees')
+            ->idConstraint($idConstraint)
+            ->only(['index', 'store', 'update', 'destroy']);
+        Particle::mount('ranks', 'ranks')
+            ->idConstraint($idConstraint)
+            ->only(['index', 'destroy']);
 
-            // Dedup-aware toggle/untoggle/rate over the action (a bare create can't dedup on the
-            // full unique tuple). Collection-level — the target arrives as body morph keys, so
-            // there's no `{id}` segment for an op mount and the routes stay bespoke — but each
-            // body delegates to its Ops class, the single home of the handler logic.
-            Route::post('ranks/toggle', fn (Request $r) => ['data' => ToggleRank::bare($r)]);
-            Route::post('ranks/untoggle', fn (Request $r) => ['data' => UntoggleRank::bare($r)]);
-            Route::post('ranks/rate', fn (Request $r) => ['data' => RateRank::bare($r)]);
-        });
+        // The reorder write op is a `#[ParticleOp]` Ops class; `Particle::ops()`
+        // discovers (registers) it AND mounts it.
+        Particle::ops('rank-trees', 'rank-trees', [ReorderRanks::class]);
+
+        // Dedup-aware toggle/untoggle/rate over the action (a bare create can't dedup on the
+        // full unique tuple). Collection-level — the target arrives as body morph keys, so
+        // there's no `{id}` segment for an op mount and the routes stay bespoke — but each
+        // body delegates to its Ops class, the single home of the handler logic.
+        Route::post('ranks/toggle', fn (Request $r) => ['data' => ToggleRank::bare($r)]);
+        Route::post('ranks/untoggle', fn (Request $r) => ['data' => UntoggleRank::bare($r)]);
+        Route::post('ranks/rate', fn (Request $r) => ['data' => RateRank::bare($r)]);
     }
 
     /**

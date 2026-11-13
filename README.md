@@ -81,6 +81,12 @@ host model (default ability `view`: rank what you can see), **additive** to the 
 (a record page wants the nested route; a "my activity" page wants the global filterable listing).
 Mirrors `laravel-beam-accounts`'s `Sharing::attachTo()`.
 
+**Package root (ADR-0243):** `Routing\RankRoutes::mount()` registers the global surface that
+`Resources::register()` mounts, under `beam.rank.api_root` (default `beam/rank`), with names starting
+`beam.rank.`. Call it inside the host's authenticated tenant group, beside the legacy mount, which stays
+until ticket 16 of owner-review-20261112. `attachTo()` is not mirrored there: its routes belong to the host
+model's resource and move with it.
+
 Tables are prefixed by beam core (`Beam::table()` → `beam_rank_trees` / `beam_ranks`).
 
 ## Config
