@@ -2,6 +2,7 @@
 
 namespace Splicewire\Beam\Rank\Data;
 
+use Spatie\TypeScriptTransformer\Attributes\TypeScript;
 use Splicewire\Beam\Data\BeamData;
 
 /**
@@ -9,6 +10,7 @@ use Splicewire\Beam\Data\BeamData;
  * caller's ordered list carried. A Data class so the op output follows the property-case
  * convention the package's read surface ({@see RankTreeData}/{@see RankData}) already sets.
  */
+#[TypeScript]
 class RankTreeReorderData extends BeamData
 {
     public function __construct(

@@ -7,6 +7,7 @@ use Illuminate\Support\Facades\Auth;
 use Rushing\DataFilters\Attributes\Filterable;
 use Rushing\DataFilters\Attributes\Sortable;
 use Rushing\DataFilters\Operators\Exact;
+use Spatie\TypeScriptTransformer\Attributes\TypeScript;
 use Splicewire\Beam\Data\BeamData;
 use Splicewire\Beam\Particle\Attributes\ParticleResource;
 use Splicewire\Beam\Rank\Models\Rank;
@@ -17,6 +18,7 @@ use Splicewire\Beam\Rank\Models\Rank;
  * which preserve tuple deduplication and scalar bounds. No record-detail surface is declared.
  */
 #[ParticleResource(key: 'ranks', backing: Rank::class, readOnly: true, deletable: true, showable: false)]
+#[TypeScript]
 class RankData extends BeamData
 {
     public function __construct(

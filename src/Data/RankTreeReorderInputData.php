@@ -2,6 +2,7 @@
 
 namespace Splicewire\Beam\Rank\Data;
 
+use Spatie\TypeScriptTransformer\Attributes\TypeScript;
 use Splicewire\Beam\Data\BeamData;
 
 /**
@@ -17,6 +18,7 @@ use Splicewire\Beam\Data\BeamData;
  *
  * @property list<string> $ids
  */
+#[TypeScript]
 class RankTreeReorderInputData extends BeamData
 {
     /**

@@ -4,6 +4,7 @@ namespace Splicewire\Beam\Rank\Data;
 
 use Illuminate\Database\Eloquent\Builder;
 use Rushing\DataFilters\Attributes\Sortable;
+use Spatie\TypeScriptTransformer\Attributes\TypeScript;
 use Splicewire\Beam\Authorization\RowAuthorization;
 use Splicewire\Beam\Data\BeamData;
 use Splicewire\Beam\Particle\Attributes\ParticleResource;
@@ -18,6 +19,7 @@ use Splicewire\Beam\Rank\Ranks;
  * exists anywhere. The resource supports list/create/update/delete without a record-detail surface.
  */
 #[ParticleResource(key: 'rank-trees', backing: RankTree::class, input: RankTreeInputData::class, showable: false)]
+#[TypeScript]
 class RankTreeData extends BeamData
 {
     public function __construct(
